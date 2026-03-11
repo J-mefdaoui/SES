@@ -25,7 +25,7 @@ class LoginPage extends StatelessWidget {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              //textfield
+              //textfield user
               Padding(
                 padding: EdgeInsetsGeometry.directional(
                   start: 50,
@@ -37,7 +37,7 @@ class LoginPage extends StatelessWidget {
                   decoration: InputDecoration(border: OutlineInputBorder()),
                 ),
               ),
-              //textfield
+              //textfield password
               Padding(
                 padding: EdgeInsetsGeometry.directional(
                   start: 50,
@@ -46,7 +46,25 @@ class LoginPage extends StatelessWidget {
                   bottom: 50,
                 ),
                 child: TextField(
-                  decoration: InputDecoration(border: OutlineInputBorder()),
+                  decoration: InputDecoration(
+                    enabledBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.green, width: 2),
+                    ),
+                    prefixIcon: Icon(Icons.key),
+                    prefixIconColor: Colors.green,
+                    hintText: "password",
+                    hintStyle: TextStyle(color: Colors.green),
+
+                    focusedBorder: OutlineInputBorder(
+                      borderSide: BorderSide(
+                        color: Color.fromARGB(255, 7, 239, 15),
+                        width: 3,
+                      ),
+                    ),
+                    fillColor: Colors.white,
+                    filled: true,
+                  ),
+                  obscureText: true,
                 ),
               ),
               //password
