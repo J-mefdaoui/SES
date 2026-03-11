@@ -1,7 +1,31 @@
 import 'package:flutter/material.dart';
+import 'package:my_first_project/components/BigButton.dart';
+import 'package:my_first_project/components/inputTextField.dart';
 
-class LoginPage extends StatelessWidget {
-  const LoginPage({super.key});
+class LoginPage extends StatefulWidget {
+  // Changed to StatefulWidget
+  const LoginPage({super.key}); // Added const constructor
+
+  @override
+  State<LoginPage> createState() => _LoginPageState();
+}
+
+class _LoginPageState extends State<LoginPage> {
+  //----------------
+  final usernameController = TextEditingController();
+  final passwordController = TextEditingController();
+
+  //--------functions-------
+
+  void Sign_in() {}
+
+  //-----------------
+  @override
+  void dispose() {
+    usernameController.dispose();
+    passwordController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -10,7 +34,7 @@ class LoginPage extends StatelessWidget {
       body: SafeArea(
         child: Center(
           child: Column(
-            children: const [
+            children: [
               SizedBox(height: 100),
               //logo
               Icon(Icons.lock, size: 100, color: Colors.green),
@@ -25,52 +49,26 @@ class LoginPage extends StatelessWidget {
                   fontWeight: FontWeight.bold,
                 ),
               ),
+
               //textfield user
-              Padding(
-                padding: EdgeInsetsGeometry.directional(
-                  start: 50,
-                  end: 50,
-                  top: 25,
-                  bottom: 10,
-                ),
-                child: TextField(
-                  decoration: InputDecoration(border: OutlineInputBorder()),
-                ),
+              MyInputTextField(
+                controller: usernameController,
+                hintText: "Username",
+                obscureText: false,
+                icon: Icons.person,
               ),
               //textfield password
-              Padding(
-                padding: EdgeInsetsGeometry.directional(
-                  start: 50,
-                  end: 50,
-                  top: 10,
-                  bottom: 50,
-                ),
-                child: TextField(
-                  decoration: InputDecoration(
-                    enabledBorder: OutlineInputBorder(
-                      borderSide: BorderSide(color: Colors.green, width: 2),
-                    ),
-                    prefixIcon: Icon(Icons.key),
-                    prefixIconColor: Colors.green,
-                    hintText: "password",
-                    hintStyle: TextStyle(color: Colors.green),
-
-                    focusedBorder: OutlineInputBorder(
-                      borderSide: BorderSide(
-                        color: Color.fromARGB(255, 7, 239, 15),
-                        width: 3,
-                      ),
-                    ),
-                    fillColor: Colors.white,
-                    filled: true,
-                  ),
-                  obscureText: true,
-                ),
+              MyInputTextField(
+                controller: passwordController,
+                hintText: "password",
+                obscureText: true,
+                icon: Icons.key,
               ),
               //password
 
               //sign-in|sign-up button
-
+              MyBigButton(onTap: Sign_in, label: "Log in"),
+              MyBigButton(onTap: Sign_in, label: "Sign-up"),
               //etc
             ],
           ),
