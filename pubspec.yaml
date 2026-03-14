@@ -30,6 +30,17 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_map: ^8.2.2
+  latlong2: ^0.9.1
+  #flutter_map_heatmap: ^0.0.8
+  path_provider: ^2.1.5
+  archive: ^4.0.9
+  mbtiles: ^0.5.0
+  path: ^1.9.1
+  vector_tile: ^2.0.1
+  vector_map_tiles: ^9.0.0-beta.7
+  vector_tile_renderer: ^6.0.0
+  url_launcher: ^6.3.0
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
@@ -59,7 +70,8 @@ flutter:
 
   # To add assets to your application, add an assets section, like this:
   assets:
-    - lib/images/
+    - assets/images/
+    - assets/mapTiles/tunisia.mbtiles
   #   - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see

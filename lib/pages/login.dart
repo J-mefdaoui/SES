@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:my_first_project/components/BigButton.dart';
 import 'package:my_first_project/components/inputTextField.dart';
+import 'package:my_first_project/pages/homepage.dart';
 
 class LoginPage extends StatefulWidget {
   // Changed to StatefulWidget
@@ -17,7 +18,12 @@ class _LoginPageState extends State<LoginPage> {
 
   //--------functions-------
 
-  void Sign_in() {}
+  void Sign_in() {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => const HomePage()),
+    );
+  } // can this function change to go to a homepage ?
 
   //-----------------
   @override
@@ -68,7 +74,19 @@ class _LoginPageState extends State<LoginPage> {
 
               //sign-in|sign-up button
               MyBigButton(onTap: Sign_in, label: "Log in"),
-              MyBigButton(onTap: Sign_in, label: "Sign-up"),
+              ElevatedButton(
+                onPressed: Sign_in,
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Text(
+                    "Sign up",
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.green,
+                    ),
+                  ),
+                ),
+              ),
               //etc
             ],
           ),

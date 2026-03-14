@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:my_first_project/pages/homepage.dart';
+import 'package:my_first_project/pages/mapPage.dart';
 import 'pages/login.dart';
 
 void main() {
