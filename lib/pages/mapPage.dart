@@ -1,11 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:mbtiles/mbtiles.dart';
-import 'package:flutter/services.dart' show rootBundle;
-import 'dart:io';
-import 'dart:typed_data';
-import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class offlineMap extends StatefulWidget {
@@ -16,10 +11,6 @@ class offlineMap extends StatefulWidget {
 }
 
 class _offlineMapState extends State<offlineMap> {
-  MbTiles? _mbTiles;
-  bool _isLoading = true;
-  String? _errorMessage;
-
   final List<Marker> _markers = [
     Marker(
       point: const LatLng(36.8065, 10.1815),
@@ -42,77 +33,7 @@ class _offlineMapState extends State<offlineMap> {
   ];
 
   @override
-  void initState() {
-    super.initState();
-    _loadMbtilesFromAssets();
-  }
-
-  Future<void> _loadMbtilesFromAssets() async {
-    try {
-      final appDir = await getApplicationDocumentsDirectory();
-      final filePath = '${appDir.path}/tunisia.mbtiles';
-      final file = File(filePath);
-
-      if (!await file.exists()) {
-        print('Copying vector MBTiles file from assets...');
-        final byteData = await rootBundle.load(
-          'assets/mapTiles/tunisia.mbtiles',
-        );
-        await file.writeAsBytes(byteData.buffer.asUint8List());
-        print('File copied successfully');
-      }
-
-      final mbtiles = MbTiles(path: filePath);
-
-      setState(() {
-        _mbTiles = mbtiles;
-        _isLoading = false;
-      });
-    } catch (e) {
-      print('Error: $e');
-      setState(() {
-        _errorMessage = e.toString();
-        _isLoading = false;
-      });
-    }
-  }
-
-  @override
-  void dispose() {
-    _mbTiles?.close();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    }
-
-    if (_errorMessage != null) {
-      return Scaffold(
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text('Error: $_errorMessage'),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: () {
-                  setState(() {
-                    _isLoading = true;
-                    _errorMessage = null;
-                  });
-                  _loadMbtilesFromAssets();
-                },
-                child: const Text('Retry'),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Tunisia Map'),
