@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "839599387753",
+    "project_id": "fir-e-s-df310",
+    "storage_bucket": "fir-e-s-df310.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:839599387753:android:3bdffac714608af4709ef8",
+        "android_client_info": {
+          "package_name": "com.example.my_first_project"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "839599387753-kokmjoh43u4uifrdce0fifgdl0q5m4ja.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBI-5C4FNjtNbujtV503GiD-SOpyRdvcjE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "839599387753-kokmjoh43u4uifrdce0fifgdl0q5m4ja.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

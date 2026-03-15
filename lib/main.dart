@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:my_first_project/firebase_options.dart';
 import 'package:my_first_project/pages/homepage.dart';
 import 'package:my_first_project/pages/mapPage.dart';
-import 'pages/login.dart';
+import 'pages/Auth/login.dart';
+import 'package:firebase_core/firebase_core.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   runApp(const MyApp());
 }
 
