@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:my_first_project/components/BigButton.dart';
 import 'package:my_first_project/components/inputTextField.dart';
 import 'package:my_first_project/pages/homepage.dart';
+import 'package:my_first_project/pages/Auth/login.dart';
 
 class LoginPage extends StatefulWidget {
   // Changed to StatefulWidget
@@ -23,7 +24,7 @@ class _LoginPageState extends State<LoginPage> {
       context,
       MaterialPageRoute(builder: (context) => const HomePage()),
     );
-  } // can this function change to go to a homepage ?
+  }
 
   //-----------------
   @override

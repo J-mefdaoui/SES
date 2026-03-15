@@ -1,7 +1,6 @@
-// lib/pages/homepage.dart
 import 'package:flutter/material.dart';
 import 'package:my_first_project/pages/debugmap.dart';
-import 'package:my_first_project/pages/login.dart';
+import 'package:my_first_project/pages/Auth/login.dart';
 import 'package:my_first_project/pages/mapPage.dart'; // Adjust import path
 
 class HomePage extends StatelessWidget {
