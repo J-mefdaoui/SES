@@ -5,6 +5,8 @@ import 'package:my_first_project/pages/Auth/login.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'dart:io' show Platform;
 
+import 'package:my_first_project/pages/mapPage.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -32,7 +34,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: Builder(builder: (context) => LoginPage()),
+      home: Builder(builder: (context) => offlineMap()),
     );
   }
 }

@@ -28,7 +28,7 @@ class _offlineMapState extends State<offlineMap> {
       point: const LatLng(35.6789, 10.1033),
       width: 40,
       height: 40,
-      child: const Icon(Icons.location_pin, color: Colors.green, size: 35),
+      child: const Icon(Icons.location_pin, color: Colors.white, size: 35),
     ),
   ];
 
@@ -121,7 +121,7 @@ class _offlineMapState extends State<offlineMap> {
           ),
           width: 40,
           height: 40,
-          child: const Icon(Icons.location_pin, color: Colors.purple, size: 35),
+          child: const Icon(Icons.circle, color: Colors.red, size: 5),
         ),
       );
     });
