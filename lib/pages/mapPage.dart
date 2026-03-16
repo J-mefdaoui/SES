@@ -35,9 +35,10 @@ class _offlineMapState extends State<offlineMap> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.lightGreen,
       appBar: AppBar(
         title: const Text('Tunisia Map'),
-        backgroundColor: Colors.blue[900],
+        backgroundColor: Colors.lightGreen,
         foregroundColor: Colors.white,
         actions: [
           IconButton(
@@ -46,55 +47,66 @@ class _offlineMapState extends State<offlineMap> {
           ),
         ],
       ),
-      body: Stack(
-        children: [
-          FlutterMap(
-            options: MapOptions(
-              initialCenter: const LatLng(34.0, 9.0),
-              initialZoom: 6,
-              maxZoom: 18,
-              minZoom: 4,
-            ),
-            children: [
-              TileLayer(
-                urlTemplate: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
-                subdomains: const ['a', 'b', 'c'],
-                userAgentPackageName: 'com.example.app',
+      bottomNavigationBar: BottomAppBar(color: Colors.lightGreen),
+      body: Container(
+        decoration: BoxDecoration(
+          border: Border.all(width: 10, color: Colors.green),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Stack(
+          children: [
+            FlutterMap(
+              options: MapOptions(
+                initialCenter: const LatLng(34.0, 9.0),
+                initialZoom: 6,
+                maxZoom: 18,
+                minZoom: 4,
               ),
-              MarkerLayer(markers: _markers),
-            ],
-          ),
-          // Attribution at bottom right
-          Positioned(
-            bottom: 10,
-            right: 10,
-            child: GestureDetector(
-              onTap: () async {
-                final url = Uri.parse(
-                  'https://www.openstreetmap.org/copyright',
-                );
-                if (await canLaunchUrl(url)) {
-                  await launchUrl(url);
-                }
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.8),
-                  borderRadius: BorderRadius.circular(4),
+              children: [
+                TileLayer(
+                  urlTemplate:
+                      'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
+                  subdomains: const ['a', 'b', 'c'],
+                  userAgentPackageName: 'com.example.app',
                 ),
-                child: const Text(
-                  '© OpenStreetMap contributors',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.blue,
-                    decoration: TextDecoration.underline,
+                MarkerLayer(markers: _markers),
+              ],
+            ),
+            // Attribution at bottom right
+            Positioned(
+              bottom: 10,
+              right: 10,
+              child: GestureDetector(
+                onTap: () async {
+                  final url = Uri.parse(
+                    'https://www.openstreetmap.org/copyright',
+                  );
+                  if (await canLaunchUrl(url)) {
+                    await launchUrl(url);
+                  }
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.8),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: const Text(
+                    '© OpenStreetMap contributors',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.blue,
+                      decoration: TextDecoration.underline,
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
