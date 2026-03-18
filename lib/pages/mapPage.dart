@@ -67,10 +67,20 @@ class _offlineMapState extends State<offlineMap> {
           children: [
             FlutterMap(
               options: MapOptions(
-                initialCenter: const LatLng(34.0, 9.0),
-                initialZoom: 6,
-                maxZoom: 18,
-                minZoom: 4,
+                initialCameraFit: CameraFit.insideBounds(
+                  bounds: LatLngBounds(
+                    const LatLng(30.2, 7.5),
+                    const LatLng(37.5, 11.6),
+                  ),
+                ),
+                maxZoom: 12,
+                minZoom: 6,
+                cameraConstraint: CameraConstraint.contain(
+                  bounds: LatLngBounds(
+                    const LatLng(30.2, 7.5),
+                    const LatLng(37.5, 11.6),
+                  ),
+                ),
               ),
               children: [
                 TileLayer(
@@ -126,12 +136,12 @@ class _offlineMapState extends State<offlineMap> {
       _markers.add(
         Marker(
           point: LatLng(
-            34.0 + (DateTime.now().millisecond % 100) / 100.0,
-            9.0 + (DateTime.now().millisecond % 100) / 100.0,
+            36.5 + (DateTime.now().millisecond % 100) / 100.0,
+            8.7833 + (DateTime.now().millisecond % 100) / 100.0,
           ),
           width: 40,
           height: 40,
-          child: const Icon(Icons.circle, color: Colors.red, size: 5),
+          child: const Icon(Icons.circle, color: Colors.red, size: 8),
         ),
       );
     });

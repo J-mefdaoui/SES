@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:my_first_project/components/BigButton.dart';
 import 'package:my_first_project/components/inputTextField.dart';
 import 'package:my_first_project/pages/homepage.dart';
-import 'package:my_first_project/pages/Auth/login.dart';
 
 class LoginPage extends StatefulWidget {
   // Changed to StatefulWidget
