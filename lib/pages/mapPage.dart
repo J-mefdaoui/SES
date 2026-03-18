@@ -73,7 +73,7 @@ class _offlineMapState extends State<offlineMap> {
                     const LatLng(37.5, 11.6),
                   ),
                 ),
-                maxZoom: 12,
+                maxZoom: 17,
                 minZoom: 6,
                 cameraConstraint: CameraConstraint.contain(
                   bounds: LatLngBounds(
