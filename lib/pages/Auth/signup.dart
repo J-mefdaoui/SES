@@ -20,9 +20,12 @@ class _SignupState extends State<Signup> {
         child: Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [Colors.green, const Color.fromARGB(255, 197, 249, 192)],
-              begin: Alignment.topRight,
-              end: AlignmentGeometry.bottomLeft,
+              colors: [
+                const Color.fromARGB(255, 197, 249, 192),
+                Colors.green.withOpacity(0.9),
+              ],
+              begin: Alignment.topLeft,
+              end: AlignmentGeometry.bottomRight,
             ),
           ),
           child: Center(
@@ -37,11 +40,15 @@ class _SignupState extends State<Signup> {
                 SizedBox(),
 
                 Container(
-                  padding: EdgeInsets.all(10),
+                  padding: EdgeInsets.all(20),
                   margin: EdgeInsets.all(30),
                   decoration: BoxDecoration(
-                    border: Border.all(width: 10),
+                    border: Border.all(
+                      width: 10,
+                      color: const Color.fromARGB(255, 83, 172, 61),
+                    ),
                     borderRadius: BorderRadius.circular(8),
+                    color: const Color.fromARGB(255, 231, 231, 231),
                   ),
                   child: Column(
                     children: [
@@ -56,6 +63,18 @@ class _SignupState extends State<Signup> {
                         hintText: "Email",
                         obscureText: false,
                         icon: Icons.mail,
+                      ),
+                      MyInputTextField(
+                        controller: passwordController,
+                        hintText: "password",
+                        obscureText: true,
+                        icon: Icons.key,
+                      ),
+                      MyInputTextField(
+                        controller: passwordController,
+                        hintText: "repeat password",
+                        obscureText: true,
+                        icon: Icons.key,
                       ),
                     ],
                   ),
