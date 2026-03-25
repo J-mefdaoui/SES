@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:my_first_project/components/inputTextField.dart';
 
 class Signup extends StatefulWidget {
@@ -12,6 +13,8 @@ class _SignupState extends State<Signup> {
   final usernameController = TextEditingController();
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
+
+  void Sign_up() {}
 
   @override
   Widget build(BuildContext context) {
@@ -31,23 +34,29 @@ class _SignupState extends State<Signup> {
           child: Center(
             child: Column(
               children: [
-                Image.asset(
-                  'assets/images/LogoBayanti.png',
-                  width: 400,
-                  height: 400,
+                Container(
+                  padding: EdgeInsets.only(top: 100, bottom: 60),
+                  child: Image.asset(
+                    'assets/images/LogoBayanti.png',
+                    width: 200,
+                    height: 200,
+                  ),
                 ),
 
                 SizedBox(),
 
                 Container(
-                  padding: EdgeInsets.all(20),
+                  padding: EdgeInsets.only(top: 30, bottom: 30),
                   margin: EdgeInsets.all(30),
                   decoration: BoxDecoration(
                     border: Border.all(
                       width: 10,
-                      color: const Color.fromARGB(255, 83, 172, 61),
+                      color: const Color(0xFF22B170).withOpacity(1),
                     ),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(60),
+                      bottomRight: Radius.circular(60),
+                    ),
                     color: const Color.fromARGB(255, 231, 231, 231),
                   ),
                   child: Column(
@@ -77,6 +86,19 @@ class _SignupState extends State<Signup> {
                         icon: Icons.key,
                       ),
                     ],
+                  ),
+                ),
+                ElevatedButton(
+                  onPressed: Sign_up,
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Text(
+                      "Sign up",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.green,
+                      ),
+                    ),
                   ),
                 ),
               ],

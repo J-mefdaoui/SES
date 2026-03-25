@@ -35,7 +35,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: Builder(builder: (context) => Signup()),
+      home: Builder(builder: (context) => offlineMap()),
     );
   }
 }
