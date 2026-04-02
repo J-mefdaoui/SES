@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:my_first_project/components/BigButton.dart';
 import 'package:my_first_project/components/inputTextField.dart';
+import 'package:my_first_project/main.dart';
 import 'package:my_first_project/pages/depricated/homepage.dart';
 import 'package:my_first_project/pages/shell.dart';
 import 'package:pocketbase/pocketbase.dart';
@@ -38,7 +39,7 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color.fromARGB(255, 223, 240, 224),
+      backgroundColor: NMColors.bg,
       body: SafeArea(
         child: Center(
           child: Column(
