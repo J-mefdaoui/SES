@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:my_first_project/components/BigButton.dart';
 import 'package:my_first_project/components/inputTextField.dart';
-import 'package:my_first_project/pages/homepage.dart';
+import 'package:my_first_project/pages/depricated/homepage.dart';
+import 'package:my_first_project/pages/shell.dart';
+import 'package:pocketbase/pocketbase.dart';
 
 class LoginPage extends StatefulWidget {
   // Changed to StatefulWidget
@@ -21,7 +23,7 @@ class _LoginPageState extends State<LoginPage> {
   void Sign_in() {
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (context) => const HomePage()),
+      MaterialPageRoute(builder: (context) => const AppShell()),
     );
   }
 

@@ -48,16 +48,6 @@ class _offlineMapState extends State<offlineMap> {
         ],
         leading: IconButton(onPressed: () {}, icon: Icon(Icons.menu)),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        backgroundColor: Colors.lightGreen,
-        unselectedItemColor: Colors.white,
-        selectedItemColor: Colors.greenAccent,
-        items: [
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.map), label: 'Map'),
-        ],
-      ),
       body: Container(
         decoration: BoxDecoration(
           border: Border.all(width: 10, color: Colors.green),

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:my_first_project/pages/debugmap.dart';
+import 'package:my_first_project/pages/depricated/debugmap.dart';
 import 'package:my_first_project/pages/Auth/login.dart';
-import 'package:my_first_project/pages/mapPage.dart'; // Adjust import path
+import 'package:my_first_project/pages/depricated/mapPage.dart'; // Adjust import path
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
