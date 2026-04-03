@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // ← ADD THIS
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import '/main.dart';
 import '/pages/shell.dart';
 
@@ -14,8 +15,8 @@ class _LoginPageState extends State<LoginPage> {
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   bool _obscure = true;
-  bool _loading = false; // ← ADD THIS
-  String? _errorMessage; // ← ADD THIS
+  bool _loading = false;
+  String? _errorMessage;
 
   @override
   void dispose() {
@@ -24,7 +25,6 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
-  // ← REPLACE _login() WITH THIS
   Future<void> _signInWithEmail() async {
     setState(() {
       _errorMessage = null;
@@ -47,12 +47,54 @@ class _LoginPageState extends State<LoginPage> {
         case 'wrong-password':
           message = 'Incorrect password. Please try again.';
           break;
+        case 'invalid-email':
+          message = 'Please enter a valid email address.';
+          break;
         default:
           message = 'Login failed. Please try again.';
       }
       setState(() {
         _loading = false;
         _errorMessage = message;
+      });
+    } catch (e) {
+      setState(() {
+        _loading = false;
+        _errorMessage = 'An error occurred. Please try again.';
+      });
+    }
+  }
+
+  Future<void> _signInWithGoogle() async {
+    setState(() {
+      _errorMessage = null;
+      _loading = true;
+    });
+
+    try {
+      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+
+      if (googleUser == null) {
+        setState(() => _loading = false);
+        return;
+      }
+
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
+
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      await FirebaseAuth.instance.signInWithCredential(credential);
+
+      if (!mounted) return;
+      _navigateToApp();
+    } catch (e) {
+      setState(() {
+        _loading = false;
+        _errorMessage = 'Google Sign-In failed. Please try again.';
       });
     }
   }
@@ -76,7 +118,7 @@ class _LoginPageState extends State<LoginPage> {
             children: [
               const SizedBox(height: 60),
 
-              // Logo (unchanged)
+              // Logo
               Row(
                 children: [
                   Container(
@@ -121,7 +163,7 @@ class _LoginPageState extends State<LoginPage> {
 
               const SizedBox(height: 48),
 
-              // ← ADD ERROR MESSAGE SECTION
+              // Error message
               if (_errorMessage != null) ...[
                 Container(
                   padding: const EdgeInsets.all(12),
@@ -153,7 +195,7 @@ class _LoginPageState extends State<LoginPage> {
                 const SizedBox(height: 16),
               ],
 
-              // Email (unchanged)
+              // Email
               const Text(
                 'EMAIL',
                 style: TextStyle(
@@ -198,7 +240,7 @@ class _LoginPageState extends State<LoginPage> {
 
               const SizedBox(height: 16),
 
-              // Password (unchanged)
+              // Password
               const Text(
                 'PASSWORD',
                 style: TextStyle(
@@ -253,12 +295,12 @@ class _LoginPageState extends State<LoginPage> {
 
               const SizedBox(height: 24),
 
-              // Sign in button - CHANGED onPressed
+              // Sign in button
               SizedBox(
                 width: double.infinity,
                 height: 50,
                 child: ElevatedButton(
-                  onPressed: _loading ? null : _signInWithEmail, // ← CHANGED
+                  onPressed: _loading ? null : _signInWithEmail,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: NMColors.green,
                     foregroundColor: const Color(0xFF0A1A0C),
@@ -267,8 +309,7 @@ class _LoginPageState extends State<LoginPage> {
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
-                  child:
-                      _loading // ← CHANGED (shows spinner when loading)
+                  child: _loading
                       ? const SizedBox(
                           width: 20,
                           height: 20,
@@ -289,7 +330,7 @@ class _LoginPageState extends State<LoginPage> {
 
               const SizedBox(height: 28),
 
-              // Divider (unchanged)
+              // Divider
               Row(
                 children: [
                   Expanded(
@@ -310,18 +351,12 @@ class _LoginPageState extends State<LoginPage> {
 
               const SizedBox(height: 28),
 
-              // Google button - DISABLED for now (just shows message)
+              // Google button
               SizedBox(
                 width: double.infinity,
                 height: 50,
                 child: OutlinedButton(
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Google Sign-In coming soon!'),
-                      ),
-                    );
-                  }, // ← CHANGED (temporary)
+                  onPressed: _loading ? null : _signInWithGoogle,
                   style: OutlinedButton.styleFrom(
                     side: const BorderSide(color: NMColors.border, width: 0.5),
                     backgroundColor: NMColors.card,
