@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:google_sign_in/google_sign_in.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // ← ADD THIS
 import '/main.dart';
 import '/pages/shell.dart';
 
@@ -15,8 +14,8 @@ class _LoginPageState extends State<LoginPage> {
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   bool _obscure = true;
-  bool _loading = false;
-  String? _errorMessage;
+  bool _loading = false; // ← ADD THIS
+  String? _errorMessage; // ← ADD THIS
 
   @override
   void dispose() {
@@ -25,6 +24,7 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
+  // ← REPLACE _login() WITH THIS
   Future<void> _signInWithEmail() async {
     setState(() {
       _errorMessage = null;
@@ -36,7 +36,6 @@ class _LoginPageState extends State<LoginPage> {
         email: _emailCtrl.text.trim(),
         password: _passwordCtrl.text,
       );
-
       if (!mounted) return;
       _navigateToApp();
     } on FirebaseAuthException catch (e) {
@@ -48,60 +47,12 @@ class _LoginPageState extends State<LoginPage> {
         case 'wrong-password':
           message = 'Incorrect password. Please try again.';
           break;
-        case 'invalid-email':
-          message = 'Please enter a valid email address.';
-          break;
         default:
           message = 'Login failed. Please try again.';
       }
-
       setState(() {
         _loading = false;
         _errorMessage = message;
-      });
-    } catch (e) {
-      setState(() {
-        _loading = false;
-        _errorMessage = 'An error occurred. Please try again.';
-      });
-    }
-  }
-
-  Future<void> _signInWithGoogle() async {
-    setState(() {
-      _errorMessage = null;
-      _loading = true;
-    });
-
-    try {
-      // Trigger Google Sign-In
-      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
-
-      if (googleUser == null) {
-        // User cancelled sign-in
-        setState(() => _loading = false);
-        return;
-      }
-
-      // Get authentication details
-      final GoogleSignInAuthentication googleAuth =
-          await googleUser.authentication;
-
-      // Create Firebase credential
-      final credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
-
-      // Sign in to Firebase
-      await FirebaseAuth.instance.signInWithCredential(credential);
-
-      if (!mounted) return;
-      _navigateToApp();
-    } catch (e) {
-      setState(() {
-        _loading = false;
-        _errorMessage = 'Google Sign-In failed. Please try again.';
       });
     }
   }
@@ -125,7 +76,7 @@ class _LoginPageState extends State<LoginPage> {
             children: [
               const SizedBox(height: 60),
 
-              // Logo
+              // Logo (unchanged)
               Row(
                 children: [
                   Container(
@@ -170,7 +121,7 @@ class _LoginPageState extends State<LoginPage> {
 
               const SizedBox(height: 48),
 
-              // Error message
+              // ← ADD ERROR MESSAGE SECTION
               if (_errorMessage != null) ...[
                 Container(
                   padding: const EdgeInsets.all(12),
@@ -202,7 +153,7 @@ class _LoginPageState extends State<LoginPage> {
                 const SizedBox(height: 16),
               ],
 
-              // Email
+              // Email (unchanged)
               const Text(
                 'EMAIL',
                 style: TextStyle(
@@ -217,15 +168,37 @@ class _LoginPageState extends State<LoginPage> {
                 controller: _emailCtrl,
                 keyboardType: TextInputType.emailAddress,
                 style: const TextStyle(color: NMColors.text, fontSize: 14),
-                decoration: _inputDecoration(
-                  'your@email.com',
-                  _errorMessage != null,
+                decoration: InputDecoration(
+                  hintText: 'your@email.com',
+                  filled: true,
+                  fillColor: NMColors.card,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(
+                      color: NMColors.border,
+                      width: 0.5,
+                    ),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(
+                      color: NMColors.border,
+                      width: 0.5,
+                    ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(
+                      color: NMColors.green.withOpacity(0.6),
+                      width: 1,
+                    ),
+                  ),
                 ),
               ),
 
               const SizedBox(height: 16),
 
-              // Password
+              // Password (unchanged)
               const Text(
                 'PASSWORD',
                 style: TextStyle(
@@ -254,20 +227,38 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                     onPressed: () => setState(() => _obscure = !_obscure),
                   ),
-                  border: _border(_errorMessage != null),
-                  enabledBorder: _border(_errorMessage != null),
-                  focusedBorder: _focusedBorder(_errorMessage != null),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(
+                      color: NMColors.border,
+                      width: 0.5,
+                    ),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(
+                      color: NMColors.border,
+                      width: 0.5,
+                    ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(
+                      color: NMColors.green.withOpacity(0.6),
+                      width: 1,
+                    ),
+                  ),
                 ),
               ),
 
               const SizedBox(height: 24),
 
-              // Sign in button
+              // Sign in button - CHANGED onPressed
               SizedBox(
                 width: double.infinity,
                 height: 50,
                 child: ElevatedButton(
-                  onPressed: _loading ? null : _signInWithEmail,
+                  onPressed: _loading ? null : _signInWithEmail, // ← CHANGED
                   style: ElevatedButton.styleFrom(
                     backgroundColor: NMColors.green,
                     foregroundColor: const Color(0xFF0A1A0C),
@@ -276,7 +267,8 @@ class _LoginPageState extends State<LoginPage> {
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
-                  child: _loading
+                  child:
+                      _loading // ← CHANGED (shows spinner when loading)
                       ? const SizedBox(
                           width: 20,
                           height: 20,
@@ -297,7 +289,7 @@ class _LoginPageState extends State<LoginPage> {
 
               const SizedBox(height: 28),
 
-              // Divider
+              // Divider (unchanged)
               Row(
                 children: [
                   Expanded(
@@ -318,12 +310,18 @@ class _LoginPageState extends State<LoginPage> {
 
               const SizedBox(height: 28),
 
-              // Google button
+              // Google button - DISABLED for now (just shows message)
               SizedBox(
                 width: double.infinity,
                 height: 50,
                 child: OutlinedButton(
-                  onPressed: _loading ? null : _signInWithGoogle,
+                  onPressed: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Google Sign-In coming soon!'),
+                      ),
+                    );
+                  }, // ← CHANGED (temporary)
                   style: OutlinedButton.styleFrom(
                     side: const BorderSide(color: NMColors.border, width: 0.5),
                     backgroundColor: NMColors.card,
@@ -364,37 +362,6 @@ class _LoginPageState extends State<LoginPage> {
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  InputDecoration _inputDecoration(String hint, bool hasError) {
-    return InputDecoration(
-      hintText: hint,
-      filled: true,
-      fillColor: NMColors.card,
-      border: _border(hasError),
-      enabledBorder: _border(hasError),
-      focusedBorder: _focusedBorder(hasError),
-    );
-  }
-
-  OutlineInputBorder _border(bool hasError) {
-    return OutlineInputBorder(
-      borderRadius: BorderRadius.circular(10),
-      borderSide: BorderSide(
-        color: hasError ? NMColors.red.withOpacity(0.5) : NMColors.border,
-        width: 0.5,
-      ),
-    );
-  }
-
-  OutlineInputBorder _focusedBorder(bool hasError) {
-    return OutlineInputBorder(
-      borderRadius: BorderRadius.circular(10),
-      borderSide: BorderSide(
-        color: hasError ? NMColors.red : NMColors.green.withOpacity(0.6),
-        width: 1,
       ),
     );
   }
