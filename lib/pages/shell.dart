@@ -65,6 +65,7 @@ class _BottomNav extends StatelessWidget {
                   onTap: () => onTap(1),
                   behavior: HitTestBehavior.opaque,
                   child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Container(
@@ -142,6 +143,7 @@ class _NavItem extends StatelessWidget {
         onTap: onTap,
         behavior: HitTestBehavior.opaque,
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
