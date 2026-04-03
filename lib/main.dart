@@ -201,7 +201,7 @@ class Bayanati extends StatelessWidget {
 
         dividerTheme: const DividerThemeData(
           color: NMColors.border,
-          thickness: 0.5,
+          thickness: 1,
           space: 0,
         ),
       ),

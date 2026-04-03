@@ -76,20 +76,13 @@ class _LoginPageState extends State<LoginPage> {
               //password
 
               //sign-in|sign-up button
+              SizedBox(height: 20),
               MyBigButton(onTap: Sign_in, label: "Log in"),
-              ElevatedButton(
-                onPressed: Sign_in,
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Text(
-                    "Sign up",
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.green,
-                    ),
-                  ),
-                ),
-              ),
+              SizedBox(height: 10),
+              MyBigButton(onTap: Sign_in, label: "Sign up"),
+              SizedBox(height: 60),
+              Divider(),
+
               //etc
             ],
           ),

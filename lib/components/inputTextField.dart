@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:my_first_project/main.dart';
 
 class MyInputTextField extends StatelessWidget {
   final controller;
@@ -27,22 +28,9 @@ class MyInputTextField extends StatelessWidget {
       child: TextField(
         controller: controller,
         decoration: InputDecoration(
-          enabledBorder: OutlineInputBorder(
-            borderSide: BorderSide(color: Colors.green, width: 2),
-          ),
           prefixIcon: Icon(icon),
           prefixIconColor: Colors.green,
           hintText: hintText,
-          hintStyle: TextStyle(color: Colors.green),
-
-          focusedBorder: OutlineInputBorder(
-            borderSide: BorderSide(
-              color: Color.fromARGB(255, 7, 239, 15),
-              width: 3,
-            ),
-          ),
-          fillColor: Colors.white,
-          filled: true,
         ),
         obscureText: obscureText,
       ),
