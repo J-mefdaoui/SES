@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import '/main.dart';
 import '/pages/shell.dart';
 
@@ -13,6 +15,8 @@ class _LoginPageState extends State<LoginPage> {
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   bool _obscure = true;
+  bool _loading = false;
+  String? _errorMessage;
 
   @override
   void dispose() {
@@ -21,7 +25,88 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
-  void _login() {
+  Future<void> _signInWithEmail() async {
+    setState(() {
+      _errorMessage = null;
+      _loading = true;
+    });
+
+    try {
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: _emailCtrl.text.trim(),
+        password: _passwordCtrl.text,
+      );
+
+      if (!mounted) return;
+      _navigateToApp();
+    } on FirebaseAuthException catch (e) {
+      String message;
+      switch (e.code) {
+        case 'user-not-found':
+          message = 'No account found with this email.';
+          break;
+        case 'wrong-password':
+          message = 'Incorrect password. Please try again.';
+          break;
+        case 'invalid-email':
+          message = 'Please enter a valid email address.';
+          break;
+        default:
+          message = 'Login failed. Please try again.';
+      }
+
+      setState(() {
+        _loading = false;
+        _errorMessage = message;
+      });
+    } catch (e) {
+      setState(() {
+        _loading = false;
+        _errorMessage = 'An error occurred. Please try again.';
+      });
+    }
+  }
+
+  Future<void> _signInWithGoogle() async {
+    setState(() {
+      _errorMessage = null;
+      _loading = true;
+    });
+
+    try {
+      // Trigger Google Sign-In
+      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+
+      if (googleUser == null) {
+        // User cancelled sign-in
+        setState(() => _loading = false);
+        return;
+      }
+
+      // Get authentication details
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
+
+      // Create Firebase credential
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      // Sign in to Firebase
+      await FirebaseAuth.instance.signInWithCredential(credential);
+
+      if (!mounted) return;
+      _navigateToApp();
+    } catch (e) {
+      setState(() {
+        _loading = false;
+        _errorMessage = 'Google Sign-In failed. Please try again.';
+      });
+    }
+  }
+
+  void _navigateToApp() {
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(builder: (_) => const AppShell()),
@@ -40,7 +125,7 @@ class _LoginPageState extends State<LoginPage> {
             children: [
               const SizedBox(height: 60),
 
-              // ── Logo ──────────────────────────────────────────────────
+              // Logo
               Row(
                 children: [
                   Container(
@@ -85,7 +170,39 @@ class _LoginPageState extends State<LoginPage> {
 
               const SizedBox(height: 48),
 
-              // ── Email ─────────────────────────────────────────────────
+              // Error message
+              if (_errorMessage != null) ...[
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: NMColors.red.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: NMColors.red.withOpacity(0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.error_outline,
+                        color: NMColors.red,
+                        size: 18,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          _errorMessage!,
+                          style: const TextStyle(
+                            color: NMColors.red,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+
+              // Email
               const Text(
                 'EMAIL',
                 style: TextStyle(
@@ -100,37 +217,15 @@ class _LoginPageState extends State<LoginPage> {
                 controller: _emailCtrl,
                 keyboardType: TextInputType.emailAddress,
                 style: const TextStyle(color: NMColors.text, fontSize: 14),
-                decoration: InputDecoration(
-                  hintText: 'your@email.com',
-                  filled: true,
-                  fillColor: NMColors.card,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(
-                      color: NMColors.border,
-                      width: 0.5,
-                    ),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(
-                      color: NMColors.border,
-                      width: 0.5,
-                    ),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide(
-                      color: NMColors.green.withOpacity(0.6),
-                      width: 1,
-                    ),
-                  ),
+                decoration: _inputDecoration(
+                  'your@email.com',
+                  _errorMessage != null,
                 ),
               ),
 
               const SizedBox(height: 16),
 
-              // ── Password ──────────────────────────────────────────────
+              // Password
               const Text(
                 'PASSWORD',
                 style: TextStyle(
@@ -159,38 +254,20 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                     onPressed: () => setState(() => _obscure = !_obscure),
                   ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(
-                      color: NMColors.border,
-                      width: 0.5,
-                    ),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(
-                      color: NMColors.border,
-                      width: 0.5,
-                    ),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide(
-                      color: NMColors.green.withOpacity(0.6),
-                      width: 1,
-                    ),
-                  ),
+                  border: _border(_errorMessage != null),
+                  enabledBorder: _border(_errorMessage != null),
+                  focusedBorder: _focusedBorder(_errorMessage != null),
                 ),
               ),
 
               const SizedBox(height: 24),
 
-              // ── Sign in button ────────────────────────────────────────
+              // Sign in button
               SizedBox(
                 width: double.infinity,
                 height: 50,
                 child: ElevatedButton(
-                  onPressed: _login,
+                  onPressed: _loading ? null : _signInWithEmail,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: NMColors.green,
                     foregroundColor: const Color(0xFF0A1A0C),
@@ -199,16 +276,28 @@ class _LoginPageState extends State<LoginPage> {
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
-                  child: const Text(
-                    'Sign in',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-                  ),
+                  child: _loading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Color(0xFF0A1A0C),
+                          ),
+                        )
+                      : const Text(
+                          'Sign in',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                 ),
               ),
 
               const SizedBox(height: 28),
 
-              // ── Divider ───────────────────────────────────────────────
+              // Divider
               Row(
                 children: [
                   Expanded(
@@ -229,12 +318,12 @@ class _LoginPageState extends State<LoginPage> {
 
               const SizedBox(height: 28),
 
-              // ── Google button ─────────────────────────────────────────
+              // Google button
               SizedBox(
                 width: double.infinity,
                 height: 50,
                 child: OutlinedButton(
-                  onPressed: _login,
+                  onPressed: _loading ? null : _signInWithGoogle,
                   style: OutlinedButton.styleFrom(
                     side: const BorderSide(color: NMColors.border, width: 0.5),
                     backgroundColor: NMColors.card,
@@ -275,6 +364,37 @@ class _LoginPageState extends State<LoginPage> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  InputDecoration _inputDecoration(String hint, bool hasError) {
+    return InputDecoration(
+      hintText: hint,
+      filled: true,
+      fillColor: NMColors.card,
+      border: _border(hasError),
+      enabledBorder: _border(hasError),
+      focusedBorder: _focusedBorder(hasError),
+    );
+  }
+
+  OutlineInputBorder _border(bool hasError) {
+    return OutlineInputBorder(
+      borderRadius: BorderRadius.circular(10),
+      borderSide: BorderSide(
+        color: hasError ? NMColors.red.withOpacity(0.5) : NMColors.border,
+        width: 0.5,
+      ),
+    );
+  }
+
+  OutlineInputBorder _focusedBorder(bool hasError) {
+    return OutlineInputBorder(
+      borderRadius: BorderRadius.circular(10),
+      borderSide: BorderSide(
+        color: hasError ? NMColors.red : NMColors.green.withOpacity(0.6),
+        width: 1,
       ),
     );
   }
