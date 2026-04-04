@@ -48,74 +48,71 @@ class _BottomNav extends StatelessWidget {
       ),
       child: SafeArea(
         top: false,
-        child: SizedBox(
-          height: 60,
-          child: Row(
-            children: [
-              _NavItem(
-                icon: Icons.map_outlined,
-                activeIcon: Icons.map,
-                label: "Map",
-                active: currentIndex == 0,
-                onTap: () => onTap(0),
-              ),
+        child: Row(
+          // ← Removed SizedBox, just use Row directly
+          children: [
+            _NavItem(
+              icon: Icons.map_outlined,
+              activeIcon: Icons.map,
+              label: "Map",
+              active: currentIndex == 0,
+              onTap: () => onTap(0),
+            ),
 
-              Expanded(
-                child: GestureDetector(
-                  onTap: () => onTap(1),
-                  behavior: HitTestBehavior.opaque,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          color: NMColors.green,
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: NMColors.green.withOpacity(0.3),
-                              blurRadius: 12,
-                              spreadRadius: 2,
-                            ),
-                          ],
-                        ),
-
-                        child: const Icon(
-                          Icons.add,
-                          color: Color(0xFF0A1A0C),
-                          size: 24,
-                        ),
+            Expanded(
+              child: GestureDetector(
+                onTap: () => onTap(1),
+                behavior: HitTestBehavior.opaque,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: NMColors.green,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: NMColors.green.withOpacity(0.3),
+                            blurRadius: 12,
+                            spreadRadius: 2,
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 3),
-                      Text(
-                        'Report',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: currentIndex == 1
-                              ? FontWeight.w600
-                              : FontWeight.normal,
-                          color: currentIndex == 1
-                              ? NMColors.green
-                              : NMColors.muted,
-                        ),
+                      child: const Icon(
+                        Icons.add,
+                        color: Color(0xFF0A1A0C),
+                        size: 24,
                       ),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      'Report',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: currentIndex == 1
+                            ? FontWeight.w600
+                            : FontWeight.normal,
+                        color: currentIndex == 1
+                            ? NMColors.green
+                            : NMColors.muted,
+                      ),
+                    ),
+                  ],
                 ),
               ),
+            ),
 
-              _NavItem(
-                icon: Icons.person_outline,
-                activeIcon: Icons.person,
-                label: "Profile",
-                active: currentIndex == 2,
-                onTap: () => onTap(2),
-              ),
-            ],
-          ),
+            _NavItem(
+              icon: Icons.person_outline,
+              activeIcon: Icons.person,
+              label: "Profile",
+              active: currentIndex == 2,
+              onTap: () => onTap(2),
+            ),
+          ],
         ),
       ),
     );
