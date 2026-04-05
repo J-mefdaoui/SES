@@ -4,7 +4,8 @@ import 'package:my_first_project/pages/mapWindow.dart';
 import 'package:my_first_project/pages/profile.dart';
 import 'package:my_first_project/pages/reportPage.dart';
 import '../main.dart';
-import 'depricated/mapPage.dart';
+//import 'depricated/mapPage.dart'; ill leave this for debugging the UI is ugly
+import 'package:my_first_project/components/NavBarItem.dart';
 
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
@@ -51,7 +52,7 @@ class _BottomNav extends StatelessWidget {
         child: Row(
           // ← Removed SizedBox, just use Row directly
           children: [
-            _NavItem(
+            NavItem(
               icon: Icons.map_outlined,
               activeIcon: Icons.map,
               label: "Map",
@@ -105,57 +106,12 @@ class _BottomNav extends StatelessWidget {
               ),
             ),
 
-            _NavItem(
+            NavItem(
               icon: Icons.person_outline,
               activeIcon: Icons.person,
               label: "Profile",
               active: currentIndex == 2,
               onTap: () => onTap(2),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _NavItem extends StatelessWidget {
-  final IconData icon;
-  final IconData activeIcon;
-  final String label;
-  final bool active;
-  final VoidCallback onTap;
-  const _NavItem({
-    required this.icon,
-    required this.activeIcon,
-    required this.label,
-    required this.active,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        behavior: HitTestBehavior.opaque,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              active ? activeIcon : icon,
-              color: active ? NMColors.green : NMColors.muted,
-              size: 22,
-            ),
-            const SizedBox(height: 3),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: active ? FontWeight.w600 : FontWeight.normal,
-                color: active ? NMColors.green : NMColors.muted,
-              ),
             ),
           ],
         ),
