@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../main.dart';
 
 // ── Badge model ───────────────────────────────────────────────────────────────
@@ -128,6 +129,26 @@ class ProfilePage extends StatelessWidget {
 class _ProfileHero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+    final displayName = user?.displayName ?? 'User';
+    final email = user?.email ?? '';
+    final photoUrl = user?.photoURL;
+
+    // Get initials from display name
+    String initials = '';
+    if (displayName.isNotEmpty && displayName != 'User') {
+      final parts = displayName.split(' ');
+      if (parts.length >= 2) {
+        initials = '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+      } else {
+        initials = displayName.substring(0, 1).toUpperCase();
+      }
+    } else if (email.isNotEmpty) {
+      initials = email.substring(0, 1).toUpperCase();
+    } else {
+      initials = '?';
+    }
+
     return Row(
       children: [
         // Avatar
@@ -142,15 +163,25 @@ class _ProfileHero extends StatelessWidget {
               width: 1.5,
             ),
           ),
-          child: const Center(
-            child: Text(
-              'KM',
-              style: TextStyle(
-                color: NMColors.green,
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
+          child: ClipOval(
+            child: photoUrl != null && photoUrl.isNotEmpty
+                ? Image.network(
+                    photoUrl,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) =>
+                        _buildInitialsAvatar(initials),
+                    loadingBuilder: (_, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return const Center(
+                        child: SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      );
+                    },
+                  )
+                : _buildInitialsAvatar(initials),
           ),
         ),
         const SizedBox(width: 14),
@@ -158,9 +189,9 @@ class _ProfileHero extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Karim M.',
-                style: TextStyle(
+              Text(
+                displayName,
+                style: const TextStyle(
                   color: NMColors.text,
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
@@ -185,6 +216,19 @@ class _ProfileHero extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildInitialsAvatar(String initials) {
+    return Center(
+      child: Text(
+        initials,
+        style: const TextStyle(
+          color: NMColors.green,
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
     );
   }
 }
