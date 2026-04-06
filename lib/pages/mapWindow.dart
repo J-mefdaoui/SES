@@ -4,12 +4,118 @@ import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../main.dart';
 
-// =============================================================================
-// DATA MODEL
-// =============================================================================
-
+// ── Data model ───────────────────────────────────────────────────────────────
 enum ReportCategory { dumping, pollution, pothole, lighting, other }
 
+extension ReportCategoryX on ReportCategory {
+  String get label {
+    switch (this) {
+      case ReportCategory.dumping:
+        return 'Illegal dumping';
+      case ReportCategory.pollution:
+        return 'Pollution';
+      case ReportCategory.pothole:
+        return 'Pothole / Road';
+      case ReportCategory.lighting:
+        return 'Broken light';
+      case ReportCategory.other:
+        return 'Other';
+    }
+  }
+
+  IconData get icon {
+    switch (this) {
+      case ReportCategory.dumping:
+        return Icons.delete_outline;
+      case ReportCategory.pollution:
+        return Icons.water_drop_outlined;
+      case ReportCategory.pothole:
+        return Icons.warning_amber_outlined;
+      case ReportCategory.lighting:
+        return Icons.light_outlined;
+      case ReportCategory.other:
+        return Icons.help_outline;
+    }
+  }
+
+  Color get color {
+    switch (this) {
+      case ReportCategory.dumping:
+        return NMColors.red;
+      case ReportCategory.pollution:
+        return NMColors.orange;
+      case ReportCategory.pothole:
+        return NMColors.amber;
+      case ReportCategory.lighting:
+        return const Color(0xFF818CF8); // indigo
+      case ReportCategory.other:
+        return NMColors.muted;
+    }
+  }
+}
+
+class Report {
+  final LatLng position;
+  final ReportCategory category;
+  final String description;
+  final String area;
+  final int reportCount;
+  final int daysOld;
+  // neglect score 0-100: decays slowly so old unfixed reports stay high
+  final int neglectScore;
+
+  const Report({
+    required this.position,
+    required this.category,
+    required this.description,
+    required this.area,
+    required this.reportCount,
+    required this.daysOld,
+    required this.neglectScore,
+  });
+}
+
+// ── Sample data ───────────────────────────────────────────────────────────────
+const _sampleReports = [
+  Report(
+    position: LatLng(36.810, 10.180),
+    category: ReportCategory.dumping,
+    description: 'Illegal dumping near Av. Habib Bourguiba',
+    area: 'Tunis Centre',
+    reportCount: 12,
+    daysOld: 18,
+    neglectScore: 82,
+  ),
+  Report(
+    position: LatLng(36.830, 10.215),
+    category: ReportCategory.lighting,
+    description: 'Broken streetlights along Route X2',
+    area: 'Lac 2',
+    reportCount: 5,
+    daysOld: 9,
+    neglectScore: 54,
+  ),
+  Report(
+    position: LatLng(36.795, 10.168),
+    category: ReportCategory.pollution,
+    description: 'Oil spill near drainage channel',
+    area: 'Médina',
+    reportCount: 3,
+    daysOld: 4,
+    neglectScore: 31,
+  ),
+  Report(
+    position: LatLng(36.849, 10.193),
+    category: ReportCategory.pothole,
+    description: 'Multiple potholes, Rue de Marseille',
+    area: 'Bab Bhar',
+    reportCount: 8,
+    daysOld: 22,
+    neglectScore: 76,
+  ),
+];
+
+// ── Time filter enum ──────────────────────────────────────────────────────────
 enum TimeFilter { h24, d7, d30, all }
 
 extension TimeFilterX on TimeFilter {
@@ -25,284 +131,9 @@ extension TimeFilterX on TimeFilter {
         return 'All time';
     }
   }
-
-  int get maxDays {
-    switch (this) {
-      case TimeFilter.h24:
-        return 1;
-      case TimeFilter.d7:
-        return 7;
-      case TimeFilter.d30:
-        return 30;
-      case TimeFilter.all:
-        return 9999;
-    }
-  }
 }
 
-class Report {
-  final String id;
-  final LatLng position;
-  final ReportCategory category;
-  final String description;
-  final String area;
-  final int reportCount;
-  final int daysOld;
-  final int neglectScore; // 0-100
-
-  const Report({
-    required this.id,
-    required this.position,
-    required this.category,
-    required this.description,
-    required this.area,
-    required this.reportCount,
-    required this.daysOld,
-    required this.neglectScore,
-  });
-
-  // Ready for Firebase — swap ReportService.fetch() when backend is ready
-  factory Report.fromFirestore(Map<String, dynamic> data, String id) {
-    return Report(
-      id: id,
-      position: LatLng(
-        (data['lat'] as num).toDouble(),
-        (data['lng'] as num).toDouble(),
-      ),
-      category: ReportCategory.values.firstWhere(
-        (e) => e.name == data['category'],
-        orElse: () => ReportCategory.other,
-      ),
-      description: data['description'] as String,
-      area: data['area'] as String,
-      reportCount: data['reportCount'] as int,
-      daysOld: data['daysOld'] as int,
-      neglectScore: data['neglectScore'] as int,
-    );
-  }
-}
-
-// =============================================================================
-// DATA SERVICE
-// Switch _mockFetch to _firebaseFetch when backend is ready.
-// Nothing outside this class needs to change.
-// =============================================================================
-
-class ReportService {
-  static Future<List<Report>> fetch() => _mockFetch();
-
-  // -- Mock (active now) ------------------------------------------------------
-  static Future<List<Report>> _mockFetch() async {
-    await Future.delayed(const Duration(milliseconds: 600));
-    return _mockReports;
-  }
-
-  // -- Firebase (uncomment when ready) ----------------------------------------
-  // static Future<List<Report>> _firebaseFetch() async {
-  //   final snap = await FirebaseFirestore.instance
-  //       .collection('reports')
-  //       .orderBy('neglectScore', descending: true)
-  //       .get();
-  //   return snap.docs
-  //       .map((d) => Report.fromFirestore(d.data(), d.id))
-  //       .toList();
-  // }
-}
-
-// =============================================================================
-// MOCK DATA
-// =============================================================================
-
-const List<Report> _mockReports = [
-  Report(
-    id: '1',
-    position: LatLng(36.8100, 10.1800),
-    category: ReportCategory.dumping,
-    description: 'Illegal dumping near Av. Habib Bourguiba',
-    area: 'Tunis Centre',
-    reportCount: 12,
-    daysOld: 18,
-    neglectScore: 82,
-  ),
-  Report(
-    id: '2',
-    position: LatLng(36.8150, 10.1850),
-    category: ReportCategory.dumping,
-    description: 'Trash pile at corner of Rue de Grece',
-    area: 'Tunis Centre',
-    reportCount: 7,
-    daysOld: 12,
-    neglectScore: 70,
-  ),
-  Report(
-    id: '3',
-    position: LatLng(36.8080, 10.1760),
-    category: ReportCategory.pollution,
-    description: 'Sewage smell near central market',
-    area: 'Tunis Centre',
-    reportCount: 4,
-    daysOld: 6,
-    neglectScore: 48,
-  ),
-  Report(
-    id: '4',
-    position: LatLng(36.8300, 10.2150),
-    category: ReportCategory.lighting,
-    description: 'Broken streetlights along Route X2',
-    area: 'Lac 2',
-    reportCount: 5,
-    daysOld: 9,
-    neglectScore: 54,
-  ),
-  Report(
-    id: '5',
-    position: LatLng(36.8320, 10.2100),
-    category: ReportCategory.lighting,
-    description: 'Three consecutive poles not working',
-    area: 'Lac 2',
-    reportCount: 3,
-    daysOld: 3,
-    neglectScore: 30,
-  ),
-  Report(
-    id: '6',
-    position: LatLng(36.7950, 10.1680),
-    category: ReportCategory.pollution,
-    description: 'Oil spill near drainage channel',
-    area: 'Medina',
-    reportCount: 3,
-    daysOld: 4,
-    neglectScore: 31,
-  ),
-  Report(
-    id: '7',
-    position: LatLng(36.8490, 10.1930),
-    category: ReportCategory.pothole,
-    description: 'Multiple potholes, Rue de Marseille',
-    area: 'Bab Bhar',
-    reportCount: 8,
-    daysOld: 22,
-    neglectScore: 76,
-  ),
-  Report(
-    id: '8',
-    position: LatLng(36.8460, 10.1960),
-    category: ReportCategory.pothole,
-    description: 'Large crater near bus stop',
-    area: 'Bab Bhar',
-    reportCount: 11,
-    daysOld: 30,
-    neglectScore: 90,
-  ),
-  Report(
-    id: '9',
-    position: LatLng(36.8510, 10.1910),
-    category: ReportCategory.dumping,
-    description: 'Construction waste dumped on sidewalk',
-    area: 'Bab Bhar',
-    reportCount: 6,
-    daysOld: 14,
-    neglectScore: 65,
-  ),
-  Report(
-    id: '10',
-    position: LatLng(36.7800, 10.1600),
-    category: ReportCategory.other,
-    description: 'Abandoned vehicle blocking road',
-    area: 'Bab Jedid',
-    reportCount: 2,
-    daysOld: 2,
-    neglectScore: 20,
-  ),
-];
-
-// =============================================================================
-// HEATMAP PAINTER
-// Draws radial blobs on a canvas using flutter_map's coordinate projection.
-// No external package — uses only flutter_map's built-in CustomPainter layer.
-// =============================================================================
-
-/// One data point fed into the painter.
-class HeatPoint {
-  final LatLng position;
-  final double weight; // 0.0 - 1.0
-
-  const HeatPoint(this.position, this.weight);
-}
-
-/// Converts a 0.0-1.0 weight to a colour along the yellow->red danger ramp.
-Color _weightToColor(double weight) {
-  if (weight < 0.3) {
-    return Color.lerp(Colors.yellow, Colors.orange, weight / 0.3)!;
-  } else if (weight < 0.7) {
-    return Color.lerp(Colors.orange, Colors.deepOrange, (weight - 0.3) / 0.4)!;
-  } else {
-    return Color.lerp(Colors.deepOrange, Colors.red, (weight - 0.7) / 0.3)!;
-  }
-}
-
-class _HeatmapPainter extends CustomPainter {
-  final List<HeatPoint> points;
-  final MapCamera camera;
-
-  // Radius in logical pixels of each heat blob.
-  // Larger zoom = we want the blob to cover roughly the same geographic area,
-  // so we scale with zoom level.
-  static const double _baseRadius = 60.0;
-
-  _HeatmapPainter({required this.points, required this.camera});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    // Scale radius with zoom so blobs feel geographically consistent
-    final double radius = _baseRadius * (camera.zoom / 12.0).clamp(0.5, 3.0);
-
-    for (final point in points) {
-      // Project LatLng to screen pixel offset
-
-      final screenPt = camera.latLngToScreenOffset(point.position);
-
-      final color = _weightToColor(point.weight);
-
-      final paint = Paint()
-        ..shader = RadialGradient(
-          colors: [
-            color.withOpacity(0.55 * point.weight),
-            color.withOpacity(0.0),
-          ],
-        ).createShader(Rect.fromCircle(center: screenPt, radius: radius))
-        ..blendMode = BlendMode.screen;
-
-      canvas.drawCircle(screenPt, radius, paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(_HeatmapPainter old) =>
-      old.points != points || old.camera != camera;
-}
-
-/// flutter_map layer widget that renders the heatmap via CustomPainter.
-class HeatmapLayer extends StatelessWidget {
-  final List<HeatPoint> points;
-
-  const HeatmapLayer({super.key, required this.points});
-
-  @override
-  Widget build(BuildContext context) {
-    final camera = MapCamera.of(context);
-    return CustomPaint(
-      painter: _HeatmapPainter(points: points, camera: camera),
-      // Fill the entire map viewport
-      child: const SizedBox.expand(),
-    );
-  }
-}
-
-// =============================================================================
-// MAP PAGE
-// =============================================================================
-
+// ── Main map page ─────────────────────────────────────────────────────────────
 class MapPage extends StatefulWidget {
   const MapPage({super.key});
 
@@ -311,35 +142,29 @@ class MapPage extends StatefulWidget {
 }
 
 class _MapPageState extends State<MapPage> {
-  List<Report> _allReports = [];
-  bool _loading = true;
-  TimeFilter _filter = TimeFilter.d7;
-  Report? _selected;
+  TimeFilter _timeFilter = TimeFilter.d7;
+  Report? _selectedReport;
 
-  List<Report> get _filtered =>
-      _allReports.where((r) => r.daysOld <= _filter.maxDays).toList();
-
-  // Convert filtered reports to heatmap points
-  List<HeatPoint> get _heatPoints => _filtered
-      .map((r) => HeatPoint(r.position, r.neglectScore / 100.0))
-      .toList();
-
-  @override
-  void initState() {
-    super.initState();
-    _loadReports();
+  List<Report> get _filteredReports {
+    int maxDays;
+    switch (_timeFilter) {
+      case TimeFilter.h24:
+        maxDays = 1;
+        break;
+      case TimeFilter.d7:
+        maxDays = 7;
+        break;
+      case TimeFilter.d30:
+        maxDays = 30;
+        break;
+      case TimeFilter.all:
+        maxDays = 9999;
+        break;
+    }
+    return _sampleReports.where((r) => r.daysOld <= maxDays).toList();
   }
 
-  Future<void> _loadReports() async {
-    setState(() => _loading = true);
-    final reports = await ReportService.fetch();
-    if (!mounted) return;
-    setState(() {
-      _allReports = reports;
-      _loading = false;
-    });
-  }
-
+  // Neglect score → marker color
   Color _scoreColor(int score) {
     if (score >= 70) return NMColors.red;
     if (score >= 40) return NMColors.orange;
@@ -363,10 +188,10 @@ class _MapPageState extends State<MapPage> {
               ),
               maxZoom: 18,
               minZoom: 8,
-              onTap: (_, __) => setState(() => _selected = null),
+              onTap: (_, __) => setState(() => _selectedReport = null),
             ),
             children: [
-              // 1 — Dark base tiles
+              // Tile layer — dark CartoDB Positron fork looks great on dark UI
               TileLayer(
                 urlTemplate:
                     'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
@@ -375,23 +200,20 @@ class _MapPageState extends State<MapPage> {
                 retinaMode: MediaQuery.of(context).devicePixelRatio > 1.0,
               ),
 
-              // 2 — Custom heatmap (above tiles, below markers)
-              if (!_loading && _heatPoints.isNotEmpty)
-                HeatmapLayer(points: _heatPoints),
-
-              // 3 — Report marker dots (tappable)
+              // Report markers
               MarkerLayer(
-                markers: _filtered.map((report) {
+                markers: _filteredReports.map((report) {
                   final color = _scoreColor(report.neglectScore);
                   return Marker(
                     point: report.position,
                     width: 36,
                     height: 36,
                     child: GestureDetector(
-                      onTap: () => setState(() => _selected = report),
+                      onTap: () => setState(() => _selectedReport = report),
                       child: Stack(
                         alignment: Alignment.center,
                         children: [
+                          // Pulsing ring
                           Container(
                             width: 36,
                             height: 36,
@@ -404,12 +226,19 @@ class _MapPageState extends State<MapPage> {
                               ),
                             ),
                           ),
+                          // Core dot
                           Container(
-                            width: 10,
-                            height: 10,
+                            width: 12,
+                            height: 12,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               color: color,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: color.withOpacity(0.6),
+                                  blurRadius: 6,
+                                ),
+                              ],
                             ),
                           ),
                         ],
@@ -421,13 +250,7 @@ class _MapPageState extends State<MapPage> {
             ],
           ),
 
-          // ── Loading indicator ───────────────────────────────────────────────
-          if (_loading)
-            const Center(
-              child: CircularProgressIndicator(color: NMColors.green),
-            ),
-
-          // ── Top bar: title + filter pills ───────────────────────────────────
+          // ── Top overlay: title + filter pills ──────────────────────────────
           Positioned(
             top: 0,
             left: 0,
@@ -439,9 +262,9 @@ class _MapPageState extends State<MapPage> {
                   end: Alignment.bottomCenter,
                   colors: [
                     NMColors.bg.withOpacity(0.95),
-                    NMColors.bg.withOpacity(0.0),
+                    NMColors.bg.withOpacity(0),
                   ],
-                  stops: const [0.55, 1.0],
+                  stops: const [0.6, 1.0],
                 ),
               ),
               child: SafeArea(
@@ -449,6 +272,7 @@ class _MapPageState extends State<MapPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Title bar
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
                       child: Row(
@@ -462,17 +286,17 @@ class _MapPageState extends State<MapPage> {
                               letterSpacing: -0.5,
                             ),
                           ),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: 6),
                           Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 6,
                               vertical: 2,
                             ),
                             decoration: BoxDecoration(
-                              color: NMColors.green.withOpacity(0.12),
+                              color: NMColors.green.withOpacity(0.15),
                               borderRadius: BorderRadius.circular(4),
                               border: Border.all(
-                                color: NMColors.green.withOpacity(0.35),
+                                color: NMColors.green.withOpacity(0.4),
                                 width: 0.5,
                               ),
                             ),
@@ -487,38 +311,28 @@ class _MapPageState extends State<MapPage> {
                             ),
                           ),
                           const Spacer(),
-                          if (!_loading)
-                            Text(
-                              '${_filtered.length} active',
-                              style: const TextStyle(
-                                color: NMColors.muted,
-                                fontSize: 12,
-                              ),
-                            ),
-                          const SizedBox(width: 8),
-                          GestureDetector(
-                            onTap: _loadReports,
-                            child: const Icon(
-                              Icons.refresh,
+                          Text(
+                            '${_filteredReports.length} active',
+                            style: const TextStyle(
                               color: NMColors.muted,
-                              size: 18,
+                              fontSize: 12,
                             ),
                           ),
                         ],
                       ),
                     ),
 
-                    // Time filter pills
+                    // Filter pills
                     SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
                       padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
                       child: Row(
                         children: TimeFilter.values.map((f) {
-                          final active = f == _filter;
+                          final active = f == _timeFilter;
                           return Padding(
                             padding: const EdgeInsets.only(right: 6),
                             child: GestureDetector(
-                              onTap: () => setState(() => _filter = f),
+                              onTap: () => setState(() => _timeFilter = f),
                               child: AnimatedContainer(
                                 duration: const Duration(milliseconds: 200),
                                 padding: const EdgeInsets.symmetric(
@@ -528,7 +342,7 @@ class _MapPageState extends State<MapPage> {
                                 decoration: BoxDecoration(
                                   color: active
                                       ? NMColors.green.withOpacity(0.15)
-                                      : NMColors.surface.withOpacity(0.85),
+                                      : NMColors.surface.withOpacity(0.8),
                                   borderRadius: BorderRadius.circular(20),
                                   border: Border.all(
                                     color: active
@@ -561,7 +375,7 @@ class _MapPageState extends State<MapPage> {
             ),
           ),
 
-          // ── Attribution ─────────────────────────────────────────────────────
+          // ── OpenStreetMap attribution ───────────────────────────────────────
           Positioned(
             bottom: 8,
             right: 8,
@@ -586,21 +400,20 @@ class _MapPageState extends State<MapPage> {
             ),
           ),
 
-          // ── Bottom sheet ────────────────────────────────────────────────────
+          // ── Bottom sheet: report list or selected report detail ─────────────
           Positioned(
             bottom: 0,
             left: 0,
             right: 0,
             child: AnimatedSwitcher(
               duration: const Duration(milliseconds: 250),
-              child: _selected != null
+              child: _selectedReport != null
                   ? _ReportDetail(
-                      key: ValueKey(_selected!.id),
-                      report: _selected!,
-                      onClose: () => setState(() => _selected = null),
-                      scoreColor: _scoreColor(_selected!.neglectScore),
+                      key: ValueKey(_selectedReport),
+                      report: _selectedReport!,
+                      onClose: () => setState(() => _selectedReport = null),
                     )
-                  : _ReportList(reports: _filtered, scoreColor: _scoreColor),
+                  : _ReportList(reports: _filteredReports),
             ),
           ),
         ],
@@ -609,15 +422,11 @@ class _MapPageState extends State<MapPage> {
   }
 }
 
-// =============================================================================
-// REPORT LIST BOTTOM SHEET
-// =============================================================================
-
+// ── Report list bottom sheet ──────────────────────────────────────────────────
 class _ReportList extends StatelessWidget {
   final List<Report> reports;
-  final Color Function(int) scoreColor;
 
-  const _ReportList({required this.reports, required this.scoreColor});
+  const _ReportList({required this.reports});
 
   @override
   Widget build(BuildContext context) {
@@ -633,15 +442,18 @@ class _ReportList extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          // Handle
           Container(
             margin: const EdgeInsets.only(top: 10, bottom: 8),
             width: 32,
             height: 3,
             decoration: BoxDecoration(
-              color: NMColors.muted.withOpacity(0.35),
+              color: NMColors.muted.withOpacity(0.4),
               borderRadius: BorderRadius.circular(2),
             ),
           ),
+
+          // Section header
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
             child: Row(
@@ -662,12 +474,9 @@ class _ReportList extends StatelessWidget {
               ],
             ),
           ),
-          ...sorted
-              .take(3)
-              .map(
-                (r) =>
-                    _ReportTile(report: r, color: scoreColor(r.neglectScore)),
-              ),
+
+          // List
+          ...sorted.take(3).map((r) => _ReportListTile(report: r)),
           const SizedBox(height: 12),
         ],
       ),
@@ -675,28 +484,39 @@ class _ReportList extends StatelessWidget {
   }
 }
 
-class _ReportTile extends StatelessWidget {
+class _ReportListTile extends StatelessWidget {
   final Report report;
-  final Color color;
 
-  const _ReportTile({required this.report, required this.color});
+  const _ReportListTile({required this.report});
+
+  Color get _scoreColor {
+    if (report.neglectScore >= 70) return NMColors.red;
+    if (report.neglectScore >= 40) return NMColors.orange;
+    return NMColors.amber;
+  }
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Category dot
           Padding(
             padding: const EdgeInsets.only(top: 5),
             child: Container(
-              width: 7,
-              height: 7,
-              decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: report.category.color,
+              ),
             ),
           ),
           const SizedBox(width: 10),
+
+          // Text + neglect bar
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -715,6 +535,7 @@ class _ReportTile extends StatelessWidget {
                   style: const TextStyle(color: NMColors.muted, fontSize: 11),
                 ),
                 const SizedBox(height: 5),
+                // Neglect score bar
                 Row(
                   children: [
                     Expanded(
@@ -724,7 +545,7 @@ class _ReportTile extends StatelessWidget {
                           value: report.neglectScore / 100,
                           minHeight: 3,
                           backgroundColor: NMColors.border,
-                          valueColor: AlwaysStoppedAnimation(color),
+                          valueColor: AlwaysStoppedAnimation(_scoreColor),
                         ),
                       ),
                     ),
@@ -732,7 +553,7 @@ class _ReportTile extends StatelessWidget {
                     Text(
                       '${report.neglectScore}',
                       style: TextStyle(
-                        color: color,
+                        color: _scoreColor,
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
                       ),
@@ -748,21 +569,18 @@ class _ReportTile extends StatelessWidget {
   }
 }
 
-// =============================================================================
-// REPORT DETAIL PANEL
-// =============================================================================
-
+// ── Selected report detail panel ──────────────────────────────────────────────
 class _ReportDetail extends StatelessWidget {
   final Report report;
   final VoidCallback onClose;
-  final Color scoreColor;
 
-  const _ReportDetail({
-    super.key,
-    required this.report,
-    required this.onClose,
-    required this.scoreColor,
-  });
+  const _ReportDetail({super.key, required this.report, required this.onClose});
+
+  Color get _scoreColor {
+    if (report.neglectScore >= 70) return NMColors.red;
+    if (report.neglectScore >= 40) return NMColors.orange;
+    return NMColors.amber;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -772,18 +590,19 @@ class _ReportDetail extends StatelessWidget {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         border: Border(top: BorderSide(color: NMColors.border, width: 0.5)),
       ),
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Handle + close
           Row(
             children: [
               Container(
                 width: 32,
                 height: 3,
                 decoration: BoxDecoration(
-                  color: NMColors.muted.withOpacity(0.35),
+                  color: NMColors.muted.withOpacity(0.4),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -794,27 +613,39 @@ class _ReportDetail extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
 
+          // Category chip
           Row(
             children: [
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: scoreColor.withOpacity(0.1),
+                  color: report.category.color.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(6),
                   border: Border.all(
-                    color: scoreColor.withOpacity(0.3),
+                    color: report.category.color.withOpacity(0.3),
                     width: 0.5,
                   ),
                 ),
-                child: Text(
-                  report.category.name,
-                  style: TextStyle(
-                    color: scoreColor,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                  ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      report.category.icon,
+                      size: 12,
+                      color: report.category.color,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      report.category.label,
+                      style: TextStyle(
+                        color: report.category.color,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(width: 8),
@@ -826,6 +657,7 @@ class _ReportDetail extends StatelessWidget {
           ),
           const SizedBox(height: 10),
 
+          // Description
           Text(
             report.description,
             style: const TextStyle(
@@ -834,38 +666,40 @@ class _ReportDetail extends StatelessWidget {
               fontWeight: FontWeight.w500,
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
 
+          // Stats row
           Row(
             children: [
-              _Chip(
+              _StatChip(
                 label: 'Reports',
                 value: '${report.reportCount}',
                 color: NMColors.muted,
               ),
               const SizedBox(width: 8),
-              _Chip(
-                label: 'Age',
+              _StatChip(
+                label: 'Days old',
                 value: '${report.daysOld}d',
                 color: NMColors.muted,
               ),
               const SizedBox(width: 8),
-              _Chip(
+              _StatChip(
                 label: 'Neglect',
                 value: '${report.neglectScore}',
-                color: scoreColor,
+                color: _scoreColor,
               ),
             ],
           ),
           const SizedBox(height: 12),
 
+          // Neglect bar
           ClipRRect(
             borderRadius: BorderRadius.circular(4),
             child: LinearProgressIndicator(
               value: report.neglectScore / 100,
               minHeight: 5,
               backgroundColor: NMColors.border,
-              valueColor: AlwaysStoppedAnimation(scoreColor),
+              valueColor: AlwaysStoppedAnimation(_scoreColor),
             ),
           ),
         ],
@@ -874,12 +708,16 @@ class _ReportDetail extends StatelessWidget {
   }
 }
 
-class _Chip extends StatelessWidget {
+class _StatChip extends StatelessWidget {
   final String label;
   final String value;
   final Color color;
 
-  const _Chip({required this.label, required this.value, required this.color});
+  const _StatChip({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {

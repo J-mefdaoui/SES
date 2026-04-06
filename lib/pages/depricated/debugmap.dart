@@ -1,5 +1,6 @@
+/*
 import 'package:flutter/material.dart';
-import 'package:mbtiles/mbtiles.dart';
+//import 'package:mbtiles/mbtiles.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'dart:io';
 import 'dart:typed_data';
@@ -294,3 +295,4 @@ class _DebugMbtilesPageState extends State<DebugMbtilesPage> {
     );
   }
 }
+*/

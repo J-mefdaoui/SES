@@ -207,7 +207,7 @@ class Bayanati extends StatelessWidget {
       ),
 
       // ── Entry point: show login, then shell ────────────────────────────────
-      home: const LoginPage(),
+      home: const AppShell(),
     );
   }
 }

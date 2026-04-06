@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
-import 'package:my_first_project/pages/depricated/debugmap.dart';
+/*import 'package:flutter/material.dart';
+//import 'package:my_first_project/pages/depricated/debugmap.dart';
 import 'package:my_first_project/pages/Auth/login.dart';
 import 'package:my_first_project/pages/depricated/mapPage.dart'; // Adjust import path
 
@@ -69,3 +69,4 @@ class HomePage extends StatelessWidget {
     );
   }
 }
+*/
