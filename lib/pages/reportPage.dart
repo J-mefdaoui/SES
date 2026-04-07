@@ -1,5 +1,10 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:path_provider/path_provider.dart';
 import '../main.dart';
 
 // ── Category definition ───────────────────────────────────────────────────────
@@ -7,7 +12,6 @@ class _Category {
   final String id;
   final String label;
   final IconData icon;
-
   const _Category(this.id, this.label, this.icon);
 }
 
@@ -33,34 +37,129 @@ class _ReportPageState extends State<ReportPage> {
   bool _anonymous = true;
   bool _submitted = false;
 
-  void _submit() {
-    if (_selectedCategory == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Please select a category'),
-          backgroundColor: NMColors.card,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-            side: const BorderSide(color: NMColors.border, width: 0.5),
-          ),
-        ),
+  // Camera state
+  File? _capturedImage;
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _requestPermissions();
+  }
+
+  Future<void> _requestPermissions() async {
+    await [Permission.camera].request();
+  }
+
+  Future<void> _takePhoto() async {
+    // Check camera permission
+    if (!await Permission.camera.isGranted) {
+      final result = await Permission.camera.request();
+      if (!result.isGranted) {
+        _showSnackBar('Camera permission is required');
+        return;
+      }
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // Take photo with camera only (no gallery)
+      final ImagePicker picker = ImagePicker();
+      final XFile? photo = await picker.pickImage(
+        source: ImageSource.camera,
+        preferredCameraDevice: CameraDevice.rear,
       );
+
+      if (photo == null) {
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      // Compress image
+      final compressedImage = await _compressImage(File(photo.path));
+
+      setState(() {
+        _capturedImage = compressedImage;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      _showSnackBar('Failed to take photo: $e');
+    }
+  }
+
+  Future<File> _compressImage(File imageFile) async {
+    final tempDir = await getTemporaryDirectory();
+    final targetPath =
+        '${tempDir.path}/${DateTime.now().millisecondsSinceEpoch}.jpg';
+
+    final result = await FlutterImageCompress.compressAndGetFile(
+      imageFile.path,
+      targetPath,
+      quality: 70,
+      minWidth: 1024,
+      minHeight: 1024,
+    );
+
+    return File(result?.path ?? imageFile.path);
+  }
+
+  Future<void> _submitReport() async {
+    if (_selectedCategory == null) {
+      _showSnackBar('Please select a category');
       return;
     }
 
-    HapticFeedback.mediumImpact();
-    setState(() => _submitted = true);
+    if (_capturedImage == null) {
+      _showSnackBar('Please take a photo');
+      return;
+    }
 
-    // Reset after 2 s so the user can file another report
+    setState(() {
+      _isLoading = true;
+    });
+
+    HapticFeedback.mediumImpact();
+
+    // Simulate upload (replace with actual upload later)
+    await Future.delayed(const Duration(seconds: 1));
+
+    setState(() {
+      _submitted = true;
+      _isLoading = false;
+    });
+
+    // Reset after 2 seconds
     Future.delayed(const Duration(seconds: 2), () {
       if (mounted) {
         setState(() {
           _submitted = false;
           _selectedCategory = null;
+          _capturedImage = null;
         });
       }
     });
+  }
+
+  void _cancelPhoto() {
+    setState(() {
+      _capturedImage = null;
+    });
+  }
+
+  void _showSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: NMColors.card,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   @override
@@ -83,33 +182,85 @@ class _ReportPageState extends State<ReportPage> {
         duration: const Duration(milliseconds: 300),
         child: _submitted
             ? _SuccessView()
-            : _FormView(
+            : _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : _capturedImage == null
+            ? _PhotoCaptureView(onTakePhoto: _takePhoto)
+            : _ConfirmationView(
+                image: _capturedImage!,
                 selectedCategory: _selectedCategory,
                 anonymous: _anonymous,
                 onCategorySelected: (id) =>
                     setState(() => _selectedCategory = id),
                 onAnonymousChanged: (val) => setState(() => _anonymous = val),
-                onSubmit: _submit,
+                onSubmit: _submitReport,
+                onCancel: _cancelPhoto,
               ),
       ),
     );
   }
 }
 
-// ── Form view ─────────────────────────────────────────────────────────────────
-class _FormView extends StatelessWidget {
+// ── Photo capture view ────────────────────────────────────────────────────────
+class _PhotoCaptureView extends StatelessWidget {
+  final VoidCallback onTakePhoto;
+  const _PhotoCaptureView({required this.onTakePhoto});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            GestureDetector(
+              onTap: onTakePhoto,
+              child: Container(
+                width: 120,
+                height: 120,
+                decoration: BoxDecoration(
+                  color: NMColors.card,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: NMColors.green, width: 2),
+                ),
+                child: const Icon(
+                  Icons.camera_alt,
+                  size: 48,
+                  color: NMColors.green,
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'Tap to take a photo',
+              style: TextStyle(color: NMColors.text, fontSize: 16),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Confirmation view ─────────────────────────────────────────────────────────
+class _ConfirmationView extends StatelessWidget {
+  final File image;
   final String? selectedCategory;
   final bool anonymous;
   final ValueChanged<String> onCategorySelected;
   final ValueChanged<bool> onAnonymousChanged;
   final VoidCallback onSubmit;
+  final VoidCallback onCancel;
 
-  const _FormView({
+  const _ConfirmationView({
+    required this.image,
     required this.selectedCategory,
     required this.anonymous,
     required this.onCategorySelected,
     required this.onAnonymousChanged,
     required this.onSubmit,
+    required this.onCancel,
   });
 
   @override
@@ -119,50 +270,49 @@ class _FormView extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Photo zone
-          GestureDetector(
-            onTap: () {}, // TODO: image_picker integration
-            child: Container(
+          // Photo preview
+          ClipRRect(
+            borderRadius: BorderRadius.circular(14),
+            child: Image.file(
+              image,
+              height: 200,
               width: double.infinity,
-              height: 130,
-              decoration: BoxDecoration(
-                color: NMColors.card,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                  color: NMColors.green.withOpacity(0.2),
-                  width: 1,
-                  // dashed border not available natively — use CustomPainter in a real app
-                ),
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.camera_alt_outlined,
-                    color: NMColors.muted,
-                    size: 32,
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Tap to photograph the issue',
-                    style: TextStyle(color: NMColors.muted, fontSize: 13),
-                  ),
-                  const SizedBox(height: 3),
-                  const Text(
-                    'or choose from gallery',
-                    style: TextStyle(color: NMColors.muted, fontSize: 11),
-                  ),
-                ],
-              ),
+              fit: BoxFit.cover,
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 12),
 
-          // Category label
+          // Retake/Cancel buttons
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: onCancel,
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: NMColors.border),
+                    foregroundColor: NMColors.muted,
+                  ),
+                  child: const Text('Retake'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: onSubmit,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: NMColors.green,
+                    foregroundColor: const Color(0xFF0A1A0C),
+                  ),
+                  child: const Text('Confirm'),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+
+          // Category selector
           const _SectionLabel('Category'),
           const SizedBox(height: 10),
-
-          // Category grid
           GridView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
@@ -212,7 +362,6 @@ class _FormView extends StatelessWidget {
                           fontWeight: selected
                               ? FontWeight.w600
                               : FontWeight.normal,
-                          height: 1.3,
                         ),
                         textAlign: TextAlign.center,
                         maxLines: 2,
@@ -225,43 +374,12 @@ class _FormView extends StatelessWidget {
           ),
           const SizedBox(height: 20),
 
-          // Location badge
-          const _SectionLabel('Location'),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(
-              color: NMColors.card,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: NMColors.border, width: 0.5),
-            ),
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.location_on_outlined,
-                  size: 16,
-                  color: NMColors.green,
-                ),
-                const SizedBox(width: 8),
-                const Expanded(
-                  child: Text(
-                    '36.8065°N, 10.1815°E · Tunis Centre',
-                    style: TextStyle(color: NMColors.muted, fontSize: 12),
-                  ),
-                ),
-                const Icon(Icons.gps_fixed, size: 14, color: NMColors.muted),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
-
           // Anonymous toggle
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
               color: NMColors.card,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: NMColors.border, width: 0.5),
             ),
             child: Row(
               children: [
@@ -277,11 +395,7 @@ class _FormView extends StatelessWidget {
                     children: [
                       Text(
                         'Submit anonymously',
-                        style: TextStyle(
-                          color: NMColors.text,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                        ),
+                        style: TextStyle(color: NMColors.text, fontSize: 13),
                       ),
                       Text(
                         'Your identity will not be stored',
@@ -294,21 +408,8 @@ class _FormView extends StatelessWidget {
                   value: anonymous,
                   onChanged: onAnonymousChanged,
                   activeColor: NMColors.green,
-                  activeTrackColor: NMColors.green.withOpacity(0.25),
-                  inactiveThumbColor: NMColors.muted,
-                  inactiveTrackColor: NMColors.surface,
                 ),
               ],
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // Submit button
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: onSubmit,
-              child: const Text('Submit report'),
             ),
           ),
         ],
@@ -349,7 +450,7 @@ class _SuccessView extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           const Text(
-            'It now appears on the heatmap.',
+            'It now appears on the map.',
             style: TextStyle(color: NMColors.muted, fontSize: 13),
           ),
         ],
@@ -361,9 +462,7 @@ class _SuccessView extends StatelessWidget {
 // ── Section label ─────────────────────────────────────────────────────────────
 class _SectionLabel extends StatelessWidget {
   final String text;
-
   const _SectionLabel(this.text);
-
   @override
   Widget build(BuildContext context) {
     return Text(

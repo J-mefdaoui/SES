@@ -144,7 +144,7 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                   const SizedBox(width: 10),
                   const Text(
-                    'NeglectMap',
+                    'Bayanati',
                     style: TextStyle(
                       color: NMColors.text,
                       fontSize: 20,
@@ -157,7 +157,7 @@ class _LoginPageState extends State<LoginPage> {
 
               const SizedBox(height: 10),
               const Text(
-                'Document what gets ignored.',
+                'Made by Ihsen Mezni & Ayoub Mefdaoui.',
                 style: TextStyle(color: NMColors.muted, fontSize: 13),
               ),
 

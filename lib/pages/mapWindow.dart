@@ -278,7 +278,7 @@ class _MapPageState extends State<MapPage> {
                       child: Row(
                         children: [
                           const Text(
-                            'NeglectMap',
+                            'Bayanati',
                             style: TextStyle(
                               color: NMColors.text,
                               fontSize: 18,
