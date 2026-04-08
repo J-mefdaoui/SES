@@ -1,10 +1,17 @@
 import 'dart:io';
+import 'package:dio/dio.dart';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:exif/exif.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:pocketbase/pocketbase.dart';
 import '../main.dart';
 
 // ── Category definition ───────────────────────────────────────────────────────
@@ -41,14 +48,28 @@ class _ReportPageState extends State<ReportPage> {
   File? _capturedImage;
   bool _isLoading = false;
 
+  // GPS state
+  double? _capturedLat;
+  double? _capturedLng;
+  String? _locationSource;
+  String? _flagReason;
+
+  //Pocketbase instance
+  late final PocketBase _pb;
+
   @override
   void initState() {
     super.initState();
     _requestPermissions();
+    _initPocketbase();
+  }
+
+  void _initPocketbase() {
+    _pb = PocketBase("baseURL"); // -------- the cloudflare URL
   }
 
   Future<void> _requestPermissions() async {
-    await [Permission.camera].request();
+    await [Permission.camera, Permission.location].request();
   }
 
   Future<void> _takePhoto() async {
@@ -63,6 +84,10 @@ class _ReportPageState extends State<ReportPage> {
 
     setState(() {
       _isLoading = true;
+      _capturedLat = null;
+      _capturedLng = null;
+      _locationSource = null;
+      _flagReason = null;
     });
 
     try {
@@ -78,11 +103,26 @@ class _ReportPageState extends State<ReportPage> {
         return;
       }
 
+      // Extract GPS from photo
+      final location = await _getLocationWithFallback(photo.path);
+
+      if (location == null) {
+        setState(() {
+          _isLoading = false;
+        });
+        _showSnackBar('Please enable GPS and retake photo');
+        return;
+      }
+
       // Compress image
       final compressedImage = await _compressImage(File(photo.path));
 
       setState(() {
         _capturedImage = compressedImage;
+        _capturedLat = location.latitude;
+        _capturedLng = location.longitude;
+        _locationSource = location.source;
+        _flagReason = location.flagReason;
         _isLoading = false;
       });
     } catch (e) {
@@ -91,6 +131,167 @@ class _ReportPageState extends State<ReportPage> {
       });
       _showSnackBar('Failed to take photo: $e');
     }
+  }
+
+  Future<
+    ({double latitude, double longitude, String source, String? flagReason})?
+  >
+  _getLocationWithFallback(String imagePath) async {
+    // Try 1: Extract from EXIF
+    final exifLocation = await _getLocationFromExif(imagePath);
+
+    // Try 2: Get phone GPS
+    final phoneLocation = await _getCurrentPhoneLocation();
+
+    // Case 1: EXIF has GPS
+    if (exifLocation != null) {
+      String? flagReason;
+      String source = 'exif';
+
+      // Compare with phone GPS if available (bot detection)
+      if (phoneLocation != null) {
+        final distance = _calculateDistance(
+          exifLocation.latitude,
+          exifLocation.longitude,
+          phoneLocation.latitude,
+          phoneLocation.longitude,
+        );
+
+        if (distance > 300) {
+          // Generous threshold in meters
+          flagReason = 'Suspicious: Location mismatch (${distance.round()}m)';
+        }
+      }
+
+      return (
+        latitude: exifLocation.latitude,
+        longitude: exifLocation.longitude,
+        source: source,
+        flagReason: flagReason,
+      );
+    }
+
+    // Case 2: EXIF has no GPS, use phone GPS as fallback
+    if (phoneLocation != null) {
+      return (
+        latitude: phoneLocation.latitude,
+        longitude: phoneLocation.longitude,
+        source: 'phone_fallback',
+        flagReason: null,
+      );
+    }
+
+    // Case 3: Both failed
+    return null;
+  }
+
+  Future<({double latitude, double longitude})?> _getLocationFromExif(
+    String imagePath,
+  ) async {
+    try {
+      final bytes = await File(imagePath).readAsBytes();
+      final exifData = await readExifFromBytes(bytes);
+
+      if (exifData.containsKey('GPS Latitude') &&
+          exifData.containsKey('GPS Longitude')) {
+        final lat = _convertDmsToDecimal(
+          exifData['GPS Latitude']!,
+          exifData['GPS LatitudeRef']?.toString() ?? 'N',
+        );
+        final lng = _convertDmsToDecimal(
+          exifData['GPS Longitude']!,
+          exifData['GPS LongitudeRef']?.toString() ?? 'E',
+        );
+
+        if (lat != null && lng != null) {
+          return (latitude: lat, longitude: lng);
+        }
+      }
+    } catch (e) {
+      print('EXIF extraction failed: $e');
+    }
+    return null;
+  }
+
+  Future<({double latitude, double longitude})?>
+  _getCurrentPhoneLocation() async {
+    // Check if location services are enabled
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      return null;
+    }
+
+    // Check permission
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        return null;
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      return null;
+    }
+
+    try {
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+      return (latitude: position.latitude, longitude: position.longitude);
+    } catch (e) {
+      print('Phone GPS failed: $e');
+      return null;
+    }
+  }
+
+  double _calculateDistance(
+    double lat1,
+    double lon1,
+    double lat2,
+    double lon2,
+  ) {
+    const double R = 6371000; // Earth radius in meters
+    final dLat = _toRadians(lat2 - lat1);
+    final dLon = _toRadians(lon2 - lon1);
+    final a =
+        _sin(dLat / 2) * _sin(dLat / 2) +
+        _cos(_toRadians(lat1)) *
+            _cos(_toRadians(lat2)) *
+            _sin(dLon / 2) *
+            _sin(dLon / 2);
+    final c = 2 * _atan2(_sqrt(a), _sqrt(1 - a));
+    return R * c;
+  }
+
+  double _toRadians(double degrees) => degrees * 3.141592653589793 / 180;
+  double _sin(double x) => math.sin(x);
+  double _cos(double x) => math.cos(x);
+  double _sqrt(double x) => math.sqrt(x);
+  double _atan2(double y, double x) => math.atan2(y, x);
+
+  double? _convertDmsToDecimal(dynamic dms, String ref) {
+    if (dms == null) return null;
+
+    double degrees = 0;
+    double minutes = 0;
+    double seconds = 0;
+
+    final dmsStr = dms.toString();
+    final parts = dmsStr.split(',');
+
+    if (parts.length >= 3) {
+      degrees = double.parse(parts[0].trim());
+      minutes = double.parse(parts[1].trim());
+      seconds = double.parse(parts[2].trim());
+    } else {
+      return null;
+    }
+
+    double decimal = degrees + minutes / 60 + seconds / 3600;
+    if (ref == 'S' || ref == 'W') decimal = -decimal;
+
+    return decimal;
   }
 
   Future<File> _compressImage(File imageFile) async {
@@ -120,35 +321,80 @@ class _ReportPageState extends State<ReportPage> {
       return;
     }
 
+    if (_capturedLat == null || _capturedLng == null) {
+      _showSnackBar(
+        'Location not detected. Please retake photo with GPS enabled.',
+      );
+      return;
+    }
+
     setState(() {
       _isLoading = true;
     });
 
     HapticFeedback.mediumImpact();
 
-    // Simulate upload (replace with actual upload later)
-    await Future.delayed(const Duration(seconds: 1));
+    try {
+      // Step 1: Upload image to PocketBase (version 0.23.2 API)
+      final file = await MultipartFile.fromFile(
+        _capturedImage!.path,
+        filename: 'photo.jpg',
+      );
+      final formData = {'image': file, 'flag': _flagReason};
 
-    setState(() {
-      _submitted = true;
-      _isLoading = false;
-    });
+      final imageRecord = await _pb
+          .collection('GeoTags')
+          .create(body: formData);
+      final imageId = imageRecord.id;
 
-    // Reset after 2 seconds
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
-        setState(() {
-          _submitted = false;
-          _selectedCategory = null;
-          _capturedImage = null;
-        });
-      }
-    });
+      // Step 2: Save report to Firestore with imageId
+      final user = FirebaseAuth.instance.currentUser;
+
+      await FirebaseFirestore.instance.collection('reports').add({
+        'category': _selectedCategory,
+        'latitude': _capturedLat,
+        'longitude': _capturedLng,
+        'locationSource': _locationSource,
+        'flagReason': _flagReason,
+        'timestamp': FieldValue.serverTimestamp(),
+        'userId': user?.uid ?? 'anonymous',
+        'anonymous': _anonymous,
+        'imageId': imageId,
+      });
+
+      setState(() {
+        _submitted = true;
+        _isLoading = false;
+      });
+
+      Future.delayed(const Duration(seconds: 2), () {
+        if (mounted) {
+          setState(() {
+            _submitted = false;
+            _selectedCategory = null;
+            _capturedImage = null;
+            _capturedLat = null;
+            _capturedLng = null;
+            _locationSource = null;
+            _flagReason = null;
+          });
+        }
+      });
+    } catch (e) {
+      _showSnackBar("Failed to submit: $e");
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   void _cancelPhoto() {
     setState(() {
       _capturedImage = null;
+      _capturedLat = null;
+      _capturedLng = null;
+      _locationSource = null;
+      _flagReason = null;
     });
   }
 
@@ -188,6 +434,10 @@ class _ReportPageState extends State<ReportPage> {
             ? _PhotoCaptureView(onTakePhoto: _takePhoto)
             : _ConfirmationView(
                 image: _capturedImage!,
+                latitude: _capturedLat,
+                longitude: _capturedLng,
+                locationSource: _locationSource,
+                flagReason: _flagReason,
                 selectedCategory: _selectedCategory,
                 anonymous: _anonymous,
                 onCategorySelected: (id) =>
@@ -236,6 +486,11 @@ class _PhotoCaptureView extends StatelessWidget {
               'Tap to take a photo',
               style: TextStyle(color: NMColors.text, fontSize: 16),
             ),
+            const SizedBox(height: 8),
+            const Text(
+              'GPS will automatically tag your location',
+              style: TextStyle(color: NMColors.muted, fontSize: 12),
+            ),
           ],
         ),
       ),
@@ -246,6 +501,10 @@ class _PhotoCaptureView extends StatelessWidget {
 // ── Confirmation view ─────────────────────────────────────────────────────────
 class _ConfirmationView extends StatelessWidget {
   final File image;
+  final double? latitude;
+  final double? longitude;
+  final String? locationSource;
+  final String? flagReason;
   final String? selectedCategory;
   final bool anonymous;
   final ValueChanged<String> onCategorySelected;
@@ -255,6 +514,10 @@ class _ConfirmationView extends StatelessWidget {
 
   const _ConfirmationView({
     required this.image,
+    required this.latitude,
+    required this.longitude,
+    required this.locationSource,
+    required this.flagReason,
     required this.selectedCategory,
     required this.anonymous,
     required this.onCategorySelected,
@@ -281,6 +544,58 @@ class _ConfirmationView extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
+
+          // Location info
+          if (latitude != null && longitude != null) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: NMColors.card,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.location_on,
+                    size: 16,
+                    color: NMColors.green,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${latitude!.toStringAsFixed(4)}°N, ${longitude!.toStringAsFixed(4)}°E',
+                          style: const TextStyle(
+                            color: NMColors.text,
+                            fontSize: 12,
+                          ),
+                        ),
+                        if (locationSource != null)
+                          Text(
+                            'Source: $locationSource',
+                            style: const TextStyle(
+                              color: NMColors.muted,
+                              fontSize: 10,
+                            ),
+                          ),
+                        if (flagReason != null)
+                          Text(
+                            flagReason!,
+                            style: const TextStyle(
+                              color: NMColors.orange,
+                              fontSize: 10,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
 
           // Retake/Cancel buttons
           Row(
