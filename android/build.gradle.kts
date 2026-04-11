@@ -1,3 +1,14 @@
+import java.io.FileInputStream
+import java.util.Properties
+import java.io.File
+
+// Load debug properties
+val debugProperties = Properties()
+val debugPropertiesFile = file("debug.properties")
+if (debugPropertiesFile.exists()) {
+    debugProperties.load(FileInputStream(debugPropertiesFile))
+}
+
 allprojects {
     repositories {
         google()

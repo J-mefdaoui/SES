@@ -12,6 +12,9 @@ import 'package:path_provider/path_provider.dart';
 import 'package:exif/exif.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:pocketbase/pocketbase.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 import '../main.dart';
 
 // ── Category definition ───────────────────────────────────────────────────────
@@ -65,7 +68,9 @@ class _ReportPageState extends State<ReportPage> {
   }
 
   void _initPocketbase() {
-    _pb = PocketBase("baseURL"); // -------- the cloudflare URL
+    _pb = PocketBase(
+      "https://identification-michel-commons-comparable.trycloudflare.com",
+    ); // -------- the cloudflare URL
   }
 
   Future<void> _requestPermissions() async {
@@ -335,19 +340,42 @@ class _ReportPageState extends State<ReportPage> {
     HapticFeedback.mediumImpact();
 
     try {
-      // Step 1: Upload image to PocketBase (version 0.23.2 API)
-      final file = await MultipartFile.fromFile(
-        _capturedImage!.path,
-        filename: 'photo.jpg',
+      // Upload to PocketBase using raw HTTP multipart
+      final uri = Uri.parse('${_pb.baseUrl}/api/collections/GeoTags/records');
+
+      var request = http.MultipartRequest('POST', uri);
+
+      // Add the image file
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'image',
+          _capturedImage!.path,
+          contentType: MediaType('image', 'jpeg'),
+        ),
       );
-      final formData = {'image': file, 'flag': _flagReason};
 
-      final imageRecord = await _pb
-          .collection('GeoTags')
-          .create(body: formData);
-      final imageId = imageRecord.id;
+      // Add the flag field
+      request.fields['flag'] = _flagReason ?? '';
 
-      // Step 2: Save report to Firestore with imageId
+      print('Sending to: $uri');
+
+      // Send request
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      print('Response status: ${response.statusCode}');
+      print('Response body: ${response.body}');
+
+      if (response.statusCode != 200) {
+        throw Exception('PocketBase upload failed: ${response.body}');
+      }
+
+      final responseData = jsonDecode(response.body);
+      final imageId = responseData['id'];
+
+      print('Upload successful! Image ID: $imageId');
+
+      // Save to Firestore
       final user = FirebaseAuth.instance.currentUser;
 
       await FirebaseFirestore.instance.collection('reports').add({
@@ -361,6 +389,8 @@ class _ReportPageState extends State<ReportPage> {
         'anonymous': _anonymous,
         'imageId': imageId,
       });
+
+      print('Firestore save successful');
 
       setState(() {
         _submitted = true;
@@ -381,6 +411,7 @@ class _ReportPageState extends State<ReportPage> {
         }
       });
     } catch (e) {
+      print('ERROR: $e');
       _showSnackBar("Failed to submit: $e");
       setState(() {
         _isLoading = false;
