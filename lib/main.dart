@@ -127,7 +127,7 @@ class Bayanati extends StatelessWidget {
           ),
         ),
 
-        // Elevated buttons (used for submit / primary actions)
+        // Elevated buttons (used for submt / primary actions)
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
             backgroundColor: NMColors.green,
