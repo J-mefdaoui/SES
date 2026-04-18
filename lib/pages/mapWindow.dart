@@ -3,6 +3,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../main.dart';
+import '../config.dart';
 
 // ── Data model ───────────────────────────────────────────────────────────────
 enum ReportCategory { dumping, pollution, pothole, lighting, other }
@@ -198,6 +199,12 @@ class _MapPageState extends State<MapPage> {
                 subdomains: const ['a', 'b', 'c', 'd'],
                 userAgentPackageName: 'com.neglectmap.app',
                 retinaMode: MediaQuery.of(context).devicePixelRatio > 1.0,
+              ),
+
+              //heatmap tile layer KDE from my local python server
+              TileLayer(
+                urlTemplate: "${Appconfig.heatmapUrl}/heatmap/{z}/{x}/{y}.png",
+                tileProvider: NetworkTileProvider(),
               ),
 
               // Report markers

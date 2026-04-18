@@ -46,3 +46,4 @@ app.*.map.json
 personal_notes.txt
 /assets/mapTiles
 lib/protected/sensitiveLinks.dart
+/lib/config.dart

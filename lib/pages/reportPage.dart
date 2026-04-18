@@ -354,9 +354,10 @@ class _ReportPageState extends State<ReportPage> {
         ),
       );
 
-      // Add the flag field
+      // Add the flag fiel
       request.fields['flag'] = _flagReason ?? '';
-
+      request.fields['location'] =
+          "${_capturedLng!.toString()},${_capturedLat!.toString()}";
       print('Sending to: $uri');
 
       // Send request

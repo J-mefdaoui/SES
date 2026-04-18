@@ -4,6 +4,7 @@ import 'package:my_first_project/pages/mapWindow.dart';
 import 'package:my_first_project/pages/profile.dart';
 import 'package:my_first_project/pages/reportPage.dart';
 import '../main.dart';
+import 'depricated/mapWindowDebug.dart';
 //import 'depricated/mapPage.dart'; ill leave this for debugging the UI is ugly
 import 'package:my_first_project/components/NavBarItem.dart';
 
@@ -15,7 +16,11 @@ class AppShell extends StatefulWidget {
 }
 
 class _AppShellState extends State<AppShell> {
-  final List<Widget> _pages = const [MapPage(), ReportPage(), ProfilePage()];
+  final List<Widget> _pages = const [
+    MapPage() /* MapWindowDebug()*/,
+    ReportPage(),
+    ProfilePage(),
+  ];
   int _currentIndex = 0;
 
   void _onTapp(int index) {
