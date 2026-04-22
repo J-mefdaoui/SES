@@ -1,7 +1,7 @@
 # my_first_project
 
 A new Flutter project.
-testing out the concept of croud sourcing and how can someone motivate day-to-day individuals to be a part of something productive or lets say "conrontational" , what would happen if you give people the power of croud sourcing / reporting ? 
+testing out the concept of croud sourcing and how can someone motivate day-to-day individuals to be a part of something productive or lets say "confrontational" , what would happen if you give people the power of croud sourcing / reporting ? 
 
 ## Getting Started
 
