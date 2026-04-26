@@ -168,7 +168,6 @@ class Bayanati extends StatelessWidget {
           hintStyle: const TextStyle(color: NMColors.muted, fontSize: 14),
           labelStyle: const TextStyle(color: NMColors.muted, fontSize: 14),
         ),
-
         textTheme: const TextTheme(
           displayLarge: TextStyle(
             color: NMColors.text,

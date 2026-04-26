@@ -47,3 +47,7 @@ personal_notes.txt
 /assets/mapTiles
 lib/protected/sensitiveLinks.dart
 /lib/config.dart
+/.opencode
+/graphify-out
+/lib/graphify-out
+/AGENTS.md

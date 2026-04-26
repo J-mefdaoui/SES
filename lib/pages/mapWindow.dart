@@ -5,6 +5,9 @@ import 'package:url_launcher/url_launcher.dart';
 import '../main.dart';
 import '../config.dart';
 
+// ── Tunisia bounding box ────────────────────────────────────────────────────────
+final _tunisiaBounds = LatLngBounds(LatLng(30.2, 7.5), LatLng(37.5, 11.6));
+
 // ── Data model ───────────────────────────────────────────────────────────────
 enum ReportCategory { dumping, pollution, pothole, lighting, other }
 
@@ -180,15 +183,15 @@ class _MapPageState extends State<MapPage> {
           // ── Map ────────────────────────────────────────────────────────────
           FlutterMap(
             options: MapOptions(
-              initialCameraFit: CameraFit.insideBounds(
-                bounds: LatLngBounds(
-                  const LatLng(36.75, 10.10),
-                  const LatLng(36.90, 10.26),
-                ),
+              /*initialCameraFit: CameraFit.bounds(
+                bounds: _tunisiaBounds,
                 padding: const EdgeInsets.all(24),
+              ),*/
+              cameraConstraint: CameraConstraint.contain(
+                bounds: _tunisiaBounds,
               ),
               maxZoom: 18,
-              minZoom: 8,
+              minZoom: 6,
               onTap: (_, __) => setState(() => _selectedReport = null),
             ),
             children: [
@@ -702,6 +705,7 @@ class _ReportDetail extends StatelessWidget {
           // Neglect bar
           ClipRRect(
             borderRadius: BorderRadius.circular(4),
+            clipBehavior: Clip.antiAlias,
             child: LinearProgressIndicator(
               value: report.neglectScore / 100,
               minHeight: 5,
