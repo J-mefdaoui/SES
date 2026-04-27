@@ -16,6 +16,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import '../main.dart';
+import '../config.dart';
 
 // ── Category definition ───────────────────────────────────────────────────────
 class _Category {
@@ -68,9 +69,7 @@ class _ReportPageState extends State<ReportPage> {
   }
 
   void _initPocketbase() {
-    _pb = PocketBase(
-      "https://identification-michel-commons-comparable.trycloudflare.com",
-    ); // -------- the cloudflare URL
+    _pb = PocketBase(Appconfig.pocketbaseUrl); // -------- the cloudflare URL
   }
 
   Future<void> _requestPermissions() async {
@@ -356,8 +355,10 @@ class _ReportPageState extends State<ReportPage> {
 
       // Add the flag fiel
       request.fields['flag'] = _flagReason ?? '';
-      request.fields['location'] =
-          "${_capturedLng!.toString()},${_capturedLat!.toString()}";
+      request.fields['location'] = jsonEncode({
+        'lon': _capturedLng,
+        'lat': _capturedLat,
+      });
       print('Sending to: $uri');
 
       // Send request
@@ -378,11 +379,11 @@ class _ReportPageState extends State<ReportPage> {
 
       // Save to Firestore
       final user = FirebaseAuth.instance.currentUser;
+      final userId = user?.uid ?? 'anonymous';
 
       await FirebaseFirestore.instance.collection('reports').add({
         'category': _selectedCategory,
-        'latitude': _capturedLat,
-        'longitude': _capturedLng,
+        'geotag': GeoPoint(_capturedLat!, _capturedLng!),
         'locationSource': _locationSource,
         'flagReason': _flagReason,
         'timestamp': FieldValue.serverTimestamp(),
@@ -390,6 +391,18 @@ class _ReportPageState extends State<ReportPage> {
         'anonymous': _anonymous,
         'imageId': imageId,
       });
+
+      final userRef = FirebaseFirestore.instance
+          .collection('usersStats')
+          .doc(userId);
+
+      await userRef.set({
+        'totalReports': FieldValue.increment(1),
+        'lastReportDate': FieldValue.serverTimestamp(),
+        'lastReportlocation': GeoPoint(_capturedLat!, _capturedLng!),
+        'categories.${_selectedCategory}': FieldValue.increment(1),
+        //[`totalstateVisted.${_whereAmI}`]
+      }, SetOptions(merge: true));
 
       print('Firestore save successful');
 

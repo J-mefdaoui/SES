@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:geolocator/geolocator.dart';
 import '../main.dart';
 import '../config.dart';
 
-// ── Tunisia bounding box ────────────────────────────────────────────────────────
-final _tunisiaBounds = LatLngBounds(LatLng(30.2, 7.5), LatLng(37.5, 11.6));
+// ── Tunisia bounding box (buffered for better framing) ────────────────────────────
+final _tunisiaBounds = LatLngBounds(LatLng(29.0, 6.0), LatLng(38.5, 12.5));
+final _tunisiaCenter = LatLng(34.0, 9.0);
 
 // ── Data model ───────────────────────────────────────────────────────────────
 enum ReportCategory { dumping, pollution, pothole, lighting, other }
@@ -146,8 +148,79 @@ class MapPage extends StatefulWidget {
 }
 
 class _MapPageState extends State<MapPage> {
+  final MapController _mapController = MapController();
   TimeFilter _timeFilter = TimeFilter.d7;
   Report? _selectedReport;
+  LatLng? _initialCenter;
+  bool _locationLoading = true;
+  String? _locationStatus;
+  double? _actualZoom;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeLocation();
+  }
+
+  Future<void> _initializeLocation() async {
+    try {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        _locationStatus = 'service_disabled';
+        _initialCenter = _tunisiaCenter;
+        setState(() => _locationLoading = false);
+        return;
+      }
+
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        _locationStatus = 'permission_denied';
+        _initialCenter = _tunisiaCenter;
+        setState(() => _locationLoading = false);
+        return;
+      }
+
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.medium,
+          timeLimit: Duration(seconds: 10),
+        ),
+      );
+
+      final userPos = LatLng(position.latitude, position.longitude);
+      if (_tunisiaBounds.contains(userPos)) {
+        _locationStatus = 'fetched';
+        _initialCenter = userPos;
+      } else {
+        _locationStatus = 'outside_bounds';
+        _initialCenter = _tunisiaCenter;
+      }
+    } catch (e) {
+      _locationStatus = 'error: $e';
+      _initialCenter = _tunisiaCenter;
+    }
+    if (mounted) {
+      setState(() => _locationLoading = false);
+      if (_locationStatus == 'fetched' && _initialCenter != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _mapController.move(_initialCenter!, 13.0);
+        });
+      }
+    }
+  }
+
+  CameraFit get _initialCameraFit {
+    // Always fit to Tunisia bounds for consistent zoom level
+    return CameraFit.bounds(
+      bounds: _tunisiaBounds,
+      padding: const EdgeInsets.all(80),
+    );
+  }
 
   List<Report> get _filteredReports {
     int maxDays;
@@ -182,17 +255,20 @@ class _MapPageState extends State<MapPage> {
         children: [
           // ── Map ────────────────────────────────────────────────────────────
           FlutterMap(
+            mapController: _mapController,
             options: MapOptions(
-              /*initialCameraFit: CameraFit.bounds(
-                bounds: _tunisiaBounds,
-                padding: const EdgeInsets.all(24),
-              ),*/
+              initialCameraFit: _initialCameraFit,
               cameraConstraint: CameraConstraint.contain(
                 bounds: _tunisiaBounds,
               ),
               maxZoom: 18,
               minZoom: 6,
               onTap: (_, __) => setState(() => _selectedReport = null),
+              onPositionChanged: (position, hasGesture) {
+                if (position.zoom != null) {
+                  _actualZoom = position.zoom;
+                }
+              },
             ),
             children: [
               // Tile layer — dark CartoDB Positron fork looks great on dark UI
@@ -204,11 +280,14 @@ class _MapPageState extends State<MapPage> {
                 retinaMode: MediaQuery.of(context).devicePixelRatio > 1.0,
               ),
 
+              //TODO connect to http python tile server
+              /*
               //heatmap tile layer KDE from my local python server
               TileLayer(
                 urlTemplate: "${Appconfig.heatmapUrl}/heatmap/{z}/{x}/{y}.png",
                 tileProvider: NetworkTileProvider(),
               ),
+              */
 
               // Report markers
               MarkerLayer(
@@ -381,6 +460,40 @@ class _MapPageState extends State<MapPage> {
                     ),
                   ],
                 ),
+              ),
+            ),
+          ),
+
+          // ── Debug overlay ───────────────────────────────────────────
+          // Always show for debugging (remove or wrap in kDebugMode in production)
+          Positioned(
+            top: 120,
+            left: 8,
+            right: 80,
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.85),
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: Colors.red, width: 1),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Status: ${_locationStatus ?? "loading..."}',
+                    style: const TextStyle(
+                      color: Colors.red,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    'Center: ${_initialCenter?.latitude.toStringAsFixed(3) ?? "-"}, ${_initialCenter?.longitude.toStringAsFixed(3) ?? "-"}',
+                    style: const TextStyle(color: Colors.white, fontSize: 10),
+                  ),
+                ],
               ),
             ),
           ),

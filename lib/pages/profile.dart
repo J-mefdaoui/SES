@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../main.dart';
+import 'Auth/login.dart';
 
-// ── Badge model ───────────────────────────────────────────────────────────────
+// =============================================================================
+// BADGE MODEL
+// =============================================================================
+
 class _Badge {
   final String emoji;
   final String name;
@@ -57,7 +62,10 @@ const _badges = [
   ),
 ];
 
-// ── Neighborhood model ────────────────────────────────────────────────────────
+// =============================================================================
+// NEIGHBORHOOD MODEL
+// =============================================================================
+
 class _Neighborhood {
   final String name;
   final int reportCount;
@@ -67,16 +75,33 @@ class _Neighborhood {
 }
 
 const _leaderboard = [
-  _Neighborhood('Bab Bhar', 143),
-  _Neighborhood('Lac 2', 103),
-  _Neighborhood('Médina', 79, isUser: true),
-  _Neighborhood('Tunis Centre', 61),
-  _Neighborhood('La Marsa', 44),
+  _Neighborhood('Tunis', 143),
+  _Neighborhood('Beja', 103),
+  _Neighborhood('Jendouba', 79, isUser: true),
+  _Neighborhood('Kef', 61),
+  _Neighborhood('Karaouen', 44),
 ];
 
-// ── Profile page ──────────────────────────────────────────────────────────────
-class ProfilePage extends StatelessWidget {
+// =============================================================================
+// PROFILE PAGE
+// =============================================================================
+
+class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
+
+  @override
+  State<ProfilePage> createState() => _ProfilePageState();
+}
+
+class _ProfilePageState extends State<ProfilePage> {
+  void _openSettings() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => const _SettingsSheet(),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -88,34 +113,25 @@ class ProfilePage extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.settings_outlined, size: 20),
             color: NMColors.muted,
-            onPressed: () {},
+            onPressed: _openSettings,
           ),
         ],
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
         children: [
-          // ── Avatar + name ────────────────────────────────────────────────
           _ProfileHero(),
           const SizedBox(height: 16),
-
-          // ── Stat cards ───────────────────────────────────────────────────
           _StatGrid(),
           const SizedBox(height: 20),
-
-          // ── Badges ───────────────────────────────────────────────────────
           const _SectionHeader('Badges'),
           const SizedBox(height: 10),
           _BadgeGrid(),
           const SizedBox(height: 20),
-
-          // ── Neighborhood leaderboard ──────────────────────────────────────
-          const _SectionHeader('Neighborhood leaderboard'),
+          const _SectionHeader('State leaderboard'),
           const SizedBox(height: 10),
           _Leaderboard(),
           const SizedBox(height: 20),
-
-          // ── Activity chart placeholder ────────────────────────────────────
           const _SectionHeader('Activity · last 30 days'),
           const SizedBox(height: 10),
           _ActivityBar(),
@@ -125,7 +141,440 @@ class ProfilePage extends StatelessWidget {
   }
 }
 
-// ── Profile hero ──────────────────────────────────────────────────────────────
+// =============================================================================
+// SETTINGS BOTTOM SHEET
+// =============================================================================
+
+class _SettingsSheet extends StatefulWidget {
+  const _SettingsSheet();
+
+  @override
+  State<_SettingsSheet> createState() => _SettingsSheetState();
+}
+
+class _SettingsSheetState extends State<_SettingsSheet> {
+  bool _notificationsEnabled = true;
+  bool _emailAlerts = false;
+  String _distanceUnit = 'km';
+  double _defaultZoom = 12.0;
+
+  Future<void> _logout() async {
+    await FirebaseAuth.instance.signOut();
+    if (!mounted) return;
+    Navigator.of(context).pop(); // close sheet
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginPage()),
+      (_) => false,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: NMColors.surface,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        border: Border(top: BorderSide(color: NMColors.border, width: 0.5)),
+      ),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Handle
+            Center(
+              child: Container(
+                margin: const EdgeInsets.only(top: 12, bottom: 4),
+                width: 32,
+                height: 3,
+                decoration: BoxDecoration(
+                  color: NMColors.muted.withOpacity(0.35),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+
+            // Header row
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+              child: Row(
+                children: [
+                  const Text(
+                    'Settings',
+                    style: TextStyle(
+                      color: NMColors.text,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: -0.3,
+                    ),
+                  ),
+                  const Spacer(),
+                  GestureDetector(
+                    onTap: () => Navigator.of(context).pop(),
+                    child: const Icon(
+                      Icons.close,
+                      color: NMColors.muted,
+                      size: 20,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // ── ACCOUNT ──────────────────────────────────────────────────────
+            _SheetSectionLabel('Account'),
+            _SettingsTile(
+              icon: Icons.person_outline,
+              label: 'Edit profile',
+              onTap: () {
+                // TODO: navigate to edit profile page
+              },
+            ),
+            _SettingsDivider(),
+            _SettingsTile(
+              icon: Icons.logout,
+              label: 'Log out',
+              labelColor: NMColors.red,
+              iconColor: NMColors.red,
+              onTap: _logout,
+            ),
+
+            const SizedBox(height: 16),
+
+            // ── NOTIFICATIONS ─────────────────────────────────────────────────
+            _SheetSectionLabel('Notifications'),
+            _SettingsToggle(
+              icon: Icons.notifications_outlined,
+              label: 'Push notifications',
+              value: _notificationsEnabled,
+              onChanged: (v) {
+                HapticFeedback.selectionClick();
+                setState(() => _notificationsEnabled = v);
+                // TODO: save to shared_preferences
+              },
+            ),
+            _SettingsDivider(),
+            _SettingsToggle(
+              icon: Icons.email_outlined,
+              label: 'Email alerts',
+              value: _emailAlerts,
+              onChanged: (v) {
+                HapticFeedback.selectionClick();
+                setState(() => _emailAlerts = v);
+                // TODO: save to shared_preferences
+              },
+            ),
+
+            const SizedBox(height: 16),
+
+            // ── MAP PREFERENCES ───────────────────────────────────────────────
+            _SheetSectionLabel('Map preferences'),
+
+            // Distance unit
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.straighten_outlined,
+                    size: 18,
+                    color: NMColors.muted,
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text(
+                      'Distance unit',
+                      style: TextStyle(color: NMColors.text, fontSize: 14),
+                    ),
+                  ),
+                  _SegmentedPicker(
+                    options: const ['km', 'mi'],
+                    selected: _distanceUnit,
+                    onSelect: (v) {
+                      HapticFeedback.selectionClick();
+                      setState(() => _distanceUnit = v);
+                      // TODO: save to shared_preferences
+                    },
+                  ),
+                ],
+              ),
+            ),
+
+            _SettingsDivider(),
+
+            // Default zoom
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 10, 20, 4),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.zoom_in_outlined,
+                    size: 18,
+                    color: NMColors.muted,
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text(
+                      'Default zoom',
+                      style: TextStyle(color: NMColors.text, fontSize: 14),
+                    ),
+                  ),
+                  Text(
+                    _defaultZoom.toStringAsFixed(0),
+                    style: const TextStyle(
+                      color: NMColors.green,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: SliderTheme(
+                data: SliderTheme.of(context).copyWith(
+                  activeTrackColor: NMColors.green,
+                  inactiveTrackColor: NMColors.border,
+                  thumbColor: NMColors.green,
+                  overlayColor: NMColors.green.withOpacity(0.12),
+                  trackHeight: 2,
+                  thumbShape: const RoundSliderThumbShape(
+                    enabledThumbRadius: 7,
+                  ),
+                ),
+                child: Slider(
+                  value: _defaultZoom,
+                  min: 8,
+                  max: 16,
+                  divisions: 8,
+                  onChanged: (v) {
+                    setState(() => _defaultZoom = v);
+                    // TODO: save to shared_preferences
+                  },
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            // ── ABOUT ─────────────────────────────────────────────────────────
+            _SheetSectionLabel('About'),
+            _SettingsTile(
+              icon: Icons.info_outline,
+              label: 'App version',
+              trailing: const Text(
+                'v0.1.0 MVP',
+                style: TextStyle(color: NMColors.muted, fontSize: 12),
+              ),
+              onTap: null,
+            ),
+            _SettingsDivider(),
+            _SettingsTile(
+              icon: Icons.description_outlined,
+              label: 'Privacy policy',
+              onTap: () {
+                // TODO: launch privacy policy URL
+              },
+            ),
+            _SettingsDivider(),
+            _SettingsTile(
+              icon: Icons.code_outlined,
+              label: 'Open source licences',
+              onTap: () => showLicensePage(context: context),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// =============================================================================
+// SETTINGS SHEET COMPONENTS
+// =============================================================================
+
+class _SheetSectionLabel extends StatelessWidget {
+  final String text;
+  const _SheetSectionLabel(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 6),
+      child: Text(
+        text.toUpperCase(),
+        style: const TextStyle(
+          color: NMColors.muted,
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.8,
+        ),
+      ),
+    );
+  }
+}
+
+class _SettingsTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color labelColor;
+  final Color iconColor;
+  final Widget? trailing;
+  final VoidCallback? onTap;
+
+  const _SettingsTile({
+    required this.icon,
+    required this.label,
+    this.labelColor = NMColors.text,
+    this.iconColor = NMColors.muted,
+    this.trailing,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      splashColor: NMColors.green.withOpacity(0.05),
+      highlightColor: NMColors.green.withOpacity(0.03),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 13),
+        child: Row(
+          children: [
+            Icon(icon, size: 18, color: iconColor),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(color: labelColor, fontSize: 14),
+              ),
+            ),
+            if (trailing != null) trailing!,
+            if (onTap != null && trailing == null)
+              const Icon(Icons.chevron_right, size: 16, color: NMColors.muted),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SettingsToggle extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  const _SettingsToggle({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: NMColors.muted),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(color: NMColors.text, fontSize: 14),
+            ),
+          ),
+          Switch(
+            value: value,
+            onChanged: onChanged,
+            activeColor: NMColors.green,
+            activeTrackColor: NMColors.green.withOpacity(0.25),
+            inactiveThumbColor: NMColors.muted,
+            inactiveTrackColor: NMColors.surface,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SettingsDivider extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 0.5,
+      margin: const EdgeInsets.only(left: 50),
+      color: NMColors.border,
+    );
+  }
+}
+
+class _SegmentedPicker extends StatelessWidget {
+  final List<String> options;
+  final String selected;
+  final ValueChanged<String> onSelect;
+
+  const _SegmentedPicker({
+    required this.options,
+    required this.selected,
+    required this.onSelect,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: NMColors.card,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: NMColors.border, width: 0.5),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: options.map((opt) {
+          final active = opt == selected;
+          return GestureDetector(
+            onTap: () => onSelect(opt),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: active
+                    ? NMColors.green.withOpacity(0.15)
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(7),
+                border: active
+                    ? Border.all(
+                        color: NMColors.green.withOpacity(0.4),
+                        width: 0.5,
+                      )
+                    : null,
+              ),
+              child: Text(
+                opt,
+                style: TextStyle(
+                  color: active ? NMColors.green : NMColors.muted,
+                  fontSize: 12,
+                  fontWeight: active ? FontWeight.w600 : FontWeight.normal,
+                ),
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+}
+
+// =============================================================================
+// PROFILE HERO — uses Firebase Auth for real name, photo, initials
+// =============================================================================
+
 class _ProfileHero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -134,24 +583,20 @@ class _ProfileHero extends StatelessWidget {
     final email = user?.email ?? '';
     final photoUrl = user?.photoURL;
 
-    // Get initials from display name
     String initials = '';
     if (displayName.isNotEmpty && displayName != 'User') {
       final parts = displayName.split(' ');
-      if (parts.length >= 2) {
-        initials = '${parts[0][0]}${parts[1][0]}'.toUpperCase();
-      } else {
-        initials = displayName.substring(0, 1).toUpperCase();
-      }
+      initials = parts.length >= 2
+          ? '${parts[0][0]}${parts[1][0]}'.toUpperCase()
+          : displayName[0].toUpperCase();
     } else if (email.isNotEmpty) {
-      initials = email.substring(0, 1).toUpperCase();
+      initials = email[0].toUpperCase();
     } else {
       initials = '?';
     }
 
     return Row(
       children: [
-        // Avatar
         Container(
           width: 56,
           height: 56,
@@ -168,10 +613,9 @@ class _ProfileHero extends StatelessWidget {
                 ? Image.network(
                     photoUrl,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) =>
-                        _buildInitialsAvatar(initials),
-                    loadingBuilder: (_, child, loadingProgress) {
-                      if (loadingProgress == null) return child;
+                    errorBuilder: (_, __, ___) => _initialsWidget(initials),
+                    loadingBuilder: (_, child, progress) {
+                      if (progress == null) return child;
                       return const Center(
                         child: SizedBox(
                           width: 20,
@@ -181,7 +625,7 @@ class _ProfileHero extends StatelessWidget {
                       );
                     },
                   )
-                : _buildInitialsAvatar(initials),
+                : _initialsWidget(initials),
           ),
         ),
         const SizedBox(width: 14),
@@ -206,9 +650,10 @@ class _ProfileHero extends StatelessWidget {
                     color: NMColors.muted,
                   ),
                   const SizedBox(width: 3),
-                  const Text(
-                    'Tunis · Joined Jan 2025',
-                    style: TextStyle(color: NMColors.muted, fontSize: 12),
+                  Text(
+                    email.isNotEmpty ? email : 'Tunis · Joined Jan 2025',
+                    style: const TextStyle(color: NMColors.muted, fontSize: 12),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
@@ -219,7 +664,7 @@ class _ProfileHero extends StatelessWidget {
     );
   }
 
-  Widget _buildInitialsAvatar(String initials) {
+  Widget _initialsWidget(String initials) {
     return Center(
       child: Text(
         initials,
@@ -233,7 +678,10 @@ class _ProfileHero extends StatelessWidget {
   }
 }
 
-// ── Stat grid ─────────────────────────────────────────────────────────────────
+// =============================================================================
+// STAT GRID
+// =============================================================================
+
 class _StatGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -241,7 +689,7 @@ class _StatGrid extends StatelessWidget {
       children: [
         _StatCard(value: '47', label: 'Reports'),
         const SizedBox(width: 8),
-        _StatCard(value: '3', label: 'Neighborhoods'),
+        _StatCard(value: '3', label: 'visited'),
         const SizedBox(width: 8),
         _StatCard(value: '#12', label: 'City rank', valueColor: NMColors.amber),
       ],
@@ -293,7 +741,10 @@ class _StatCard extends StatelessWidget {
   }
 }
 
-// ── Badge grid ────────────────────────────────────────────────────────────────
+// =============================================================================
+// BADGE GRID
+// =============================================================================
+
 class _BadgeGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -314,7 +765,6 @@ class _BadgeGrid extends StatelessWidget {
 
 class _BadgeTile extends StatelessWidget {
   final _Badge badge;
-
   const _BadgeTile({required this.badge});
 
   @override
@@ -367,7 +817,10 @@ class _BadgeTile extends StatelessWidget {
   }
 }
 
-// ── Leaderboard ───────────────────────────────────────────────────────────────
+// =============================================================================
+// LEADERBOARD
+// =============================================================================
+
 class _Leaderboard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -385,7 +838,7 @@ class _Leaderboard extends StatelessWidget {
           final n = e.value;
           final isLast = idx == _leaderboard.length - 1;
           return Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 11),
             decoration: BoxDecoration(
               color: n.isUser
                   ? NMColors.green.withOpacity(0.05)
@@ -398,9 +851,8 @@ class _Leaderboard extends StatelessWidget {
             ),
             child: Row(
               children: [
-                // Rank number
                 SizedBox(
-                  width: 20,
+                  width: 10,
                   child: Text(
                     '${idx + 1}',
                     style: TextStyle(
@@ -413,7 +865,6 @@ class _Leaderboard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 10),
-                // Name
                 Expanded(
                   flex: 2,
                   child: Row(
@@ -438,7 +889,6 @@ class _Leaderboard extends StatelessWidget {
                     ],
                   ),
                 ),
-                // Bar
                 Expanded(
                   flex: 3,
                   child: ClipRRect(
@@ -454,7 +904,6 @@ class _Leaderboard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-                // Count
                 Text(
                   '${n.reportCount}',
                   style: TextStyle(
@@ -472,11 +921,13 @@ class _Leaderboard extends StatelessWidget {
   }
 }
 
-// ── Activity bar (placeholder) ────────────────────────────────────────────────
+// =============================================================================
+// ACTIVITY BAR
+// =============================================================================
+
 class _ActivityBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    // 30 fake daily values
     final values = [
       2,
       0,
@@ -522,32 +973,26 @@ class _ActivityBar extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            children: [
-              SizedBox(
-                height: 48,
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: values.map((v) {
-                    final heightFraction = maxVal > 0 ? v / maxVal : 0.0;
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 2),
-                      child: Container(
-                        width: 7,
-                        height: 48 * heightFraction + 2,
-                        decoration: BoxDecoration(
-                          color: v == 0
-                              ? NMColors.border
-                              : NMColors.green.withOpacity(
-                                  0.3 + 0.7 * heightFraction,
-                                ),
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                    );
-                  }).toList(),
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: values.map((v) {
+              final heightFraction = maxVal > 0 ? v / maxVal : 0.0;
+              return Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(right: 2),
+                  child: Container(
+                    height: 48 * heightFraction + 2,
+                    decoration: BoxDecoration(
+                      color: v == 0
+                          ? NMColors.border
+                          : NMColors.green.withOpacity(
+                              0.3 + 0.7 * heightFraction,
+                            ),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
                 ),
-              ),
-            ],
+              );
+            }).toList(),
           ),
           const SizedBox(height: 8),
           const Row(
@@ -569,10 +1014,12 @@ class _ActivityBar extends StatelessWidget {
   }
 }
 
-// ── Section header ────────────────────────────────────────────────────────────
+// =============================================================================
+// SECTION HEADER
+// =============================================================================
+
 class _SectionHeader extends StatelessWidget {
   final String text;
-
   const _SectionHeader(this.text);
 
   @override
