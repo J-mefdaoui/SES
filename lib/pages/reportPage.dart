@@ -17,6 +17,7 @@ import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import '../main.dart';
 import '../config.dart';
+import '../components/statefinder.dart';
 
 // ── Category definition ───────────────────────────────────────────────────────
 class _Category {
@@ -392,6 +393,10 @@ class _ReportPageState extends State<ReportPage> {
         'imageId': imageId,
       });
 
+      final _whereAmI = await GetState.getGovernorat(
+        _capturedLat!,
+        _capturedLng!,
+      );
       final userRef = FirebaseFirestore.instance
           .collection('usersStats')
           .doc(userId);
@@ -401,7 +406,17 @@ class _ReportPageState extends State<ReportPage> {
         'lastReportDate': FieldValue.serverTimestamp(),
         'lastReportlocation': GeoPoint(_capturedLat!, _capturedLng!),
         'categories.${_selectedCategory}': FieldValue.increment(1),
-        //[`totalstateVisted.${_whereAmI}`]
+        'totalstateVisted.${_whereAmI}': FieldValue.increment(1),
+      }, SetOptions(merge: true));
+
+      //TODO: global status
+      final globalref = FirebaseFirestore.instance
+          .collection('globalStats')
+          .doc('governorateCount');
+      await globalref.set({
+        '${_whereAmI}': FieldValue.increment(1),
+        'G-totalReports': FieldValue.increment(1),
+        'lastUpdated': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
       print('Firestore save successful');

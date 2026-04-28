@@ -5,64 +5,6 @@ import '../main.dart';
 import 'Auth/login.dart';
 
 // =============================================================================
-// BADGE MODEL
-// =============================================================================
-
-class _Badge {
-  final String emoji;
-  final String name;
-  final String description;
-  final bool unlocked;
-  final Color color;
-
-  const _Badge({
-    required this.emoji,
-    required this.name,
-    required this.description,
-    required this.unlocked,
-    required this.color,
-  });
-}
-
-const _badges = [
-  _Badge(
-    emoji: '🔥',
-    name: '7-day streak',
-    description: 'Report 7 days in a row',
-    unlocked: true,
-    color: NMColors.amber,
-  ),
-  _Badge(
-    emoji: '📍',
-    name: 'First reporter',
-    description: 'First to report a location',
-    unlocked: true,
-    color: NMColors.green,
-  ),
-  _Badge(
-    emoji: '🔬',
-    name: 'Data guardian',
-    description: 'Submit 25+ reports',
-    unlocked: true,
-    color: Color(0xFFA78BFA),
-  ),
-  _Badge(
-    emoji: '🏆',
-    name: 'Top reporter',
-    description: 'Reach top 10 in your city',
-    unlocked: false,
-    color: NMColors.muted,
-  ),
-  _Badge(
-    emoji: '🗺️',
-    name: 'Explorer',
-    description: 'Report in 5 neighborhoods',
-    unlocked: false,
-    color: NMColors.muted,
-  ),
-];
-
-// =============================================================================
 // NEIGHBORHOOD MODEL
 // =============================================================================
 
@@ -80,6 +22,47 @@ const _leaderboard = [
   _Neighborhood('Jendouba', 79, isUser: true),
   _Neighborhood('Kef', 61),
   _Neighborhood('Karaouen', 44),
+];
+
+// =============================================================================
+// CONTRIBUTION DATA
+// 16 weeks x 7 days = 112 days of mock activity (0 = no report, 1-4 = intensity)
+// Replace with real Firestore query when backend is ready.
+// =============================================================================
+
+final List<int> _contributionData = [
+  // week 1
+  0, 0, 1, 0, 2, 0, 0,
+  // week 2
+  1, 0, 0, 3, 0, 1, 0,
+  // week 3
+  0, 2, 1, 0, 0, 2, 1,
+  // week 4
+  0, 0, 0, 1, 3, 0, 0,
+  // week 5
+  2, 1, 0, 0, 1, 0, 2,
+  // week 6
+  0, 0, 4, 2, 0, 1, 0,
+  // week 7
+  1, 0, 0, 0, 2, 3, 0,
+  // week 8
+  0, 1, 2, 0, 0, 1, 0,
+  // week 9
+  3, 0, 1, 2, 0, 0, 1,
+  // week 10
+  0, 2, 0, 0, 4, 1, 0,
+  // week 11
+  1, 0, 3, 0, 2, 0, 1,
+  // week 12
+  0, 0, 1, 2, 0, 3, 0,
+  // week 13
+  2, 1, 0, 1, 0, 0, 2,
+  // week 14
+  0, 3, 2, 0, 1, 0, 0,
+  // week 15
+  1, 0, 0, 4, 2, 1, 0,
+  // week 16
+  0, 2, 1, 0, 3, 4, 2,
 ];
 
 // =============================================================================
@@ -124,9 +107,9 @@ class _ProfilePageState extends State<ProfilePage> {
           const SizedBox(height: 16),
           _StatGrid(),
           const SizedBox(height: 20),
-          const _SectionHeader('Badges'),
+          const _SectionHeader('Contribution'),
           const SizedBox(height: 10),
-          _BadgeGrid(),
+          _ContributionMatrix(data: _contributionData),
           const SizedBox(height: 20),
           const _SectionHeader('State leaderboard'),
           const SizedBox(height: 10),
@@ -135,6 +118,228 @@ class _ProfilePageState extends State<ProfilePage> {
           const _SectionHeader('Activity · last 30 days'),
           const SizedBox(height: 10),
           _ActivityBar(),
+        ],
+      ),
+    );
+  }
+}
+
+// =============================================================================
+// CONTRIBUTION MATRIX — GitHub style
+// =============================================================================
+
+class _ContributionMatrix extends StatefulWidget {
+  final List<int> data; // values 0-4, length must be weeks * 7
+
+  const _ContributionMatrix({required this.data});
+
+  @override
+  State<_ContributionMatrix> createState() => _ContributionMatrixState();
+}
+
+class _ContributionMatrixState extends State<_ContributionMatrix> {
+  int? _tappedIndex;
+
+  // Maps intensity 0-4 to a color
+  Color _cellColor(int value) {
+    switch (value) {
+      case 0:
+        return NMColors.card;
+      case 1:
+        return NMColors.green.withOpacity(0.25);
+      case 2:
+        return NMColors.green.withOpacity(0.50);
+      case 3:
+        return NMColors.green.withOpacity(0.75);
+      default:
+        return NMColors.green;
+    }
+  }
+
+  String _label(int index, int value) {
+    // Calculate a rough "days ago" for the label
+    final daysAgo = widget.data.length - 1 - index;
+    if (value == 0) return '$daysAgo days ago — no reports';
+    final word = value == 1 ? 'report' : 'reports';
+    return '$daysAgo days ago — $value $word';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final weeks = (widget.data.length / 7).ceil();
+    final totalReports = widget.data.reduce((a, b) => a + b);
+    final activeDays = widget.data.where((v) => v > 0).length;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: NMColors.card,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: NMColors.border, width: 0.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Stats row
+          Row(
+            children: [
+              Text(
+                '$totalReports reports',
+                style: const TextStyle(
+                  color: NMColors.text,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(width: 6),
+              const Text(
+                '·',
+                style: TextStyle(color: NMColors.muted, fontSize: 13),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                '$activeDays active days',
+                style: const TextStyle(color: NMColors.muted, fontSize: 12),
+              ),
+              const Spacer(),
+              Text(
+                '16 weeks',
+                style: const TextStyle(color: NMColors.muted, fontSize: 11),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // Day-of-week labels + grid
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Day labels (Mon, Wed, Fri)
+              Column(
+                children: List.generate(7, (day) {
+                  final label = ['M', '', 'W', '', 'F', '', ''][day];
+                  return SizedBox(
+                    height: 11,
+                    child: Text(
+                      label,
+                      style: const TextStyle(
+                        color: NMColors.muted,
+                        fontSize: 8,
+                      ),
+                    ),
+                  );
+                }),
+              ),
+              const SizedBox(width: 4),
+
+              // Grid
+              Expanded(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  reverse: true, // most recent on the right
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: List.generate(weeks, (week) {
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 2),
+                        child: Column(
+                          children: List.generate(7, (day) {
+                            final index = week * 7 + day;
+                            if (index >= widget.data.length) {
+                              return const SizedBox(height: 11);
+                            }
+                            final value = widget.data[index];
+                            final isTapped = _tappedIndex == index;
+                            return GestureDetector(
+                              onTap: () {
+                                HapticFeedback.selectionClick();
+                                setState(
+                                  () => _tappedIndex = isTapped ? null : index,
+                                );
+                              },
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 150),
+                                width: 9,
+                                height: 9,
+                                margin: const EdgeInsets.only(bottom: 2),
+                                decoration: BoxDecoration(
+                                  color: _cellColor(value),
+                                  borderRadius: BorderRadius.circular(2),
+                                  border: isTapped
+                                      ? Border.all(
+                                          color: NMColors.green,
+                                          width: 1,
+                                        )
+                                      : null,
+                                ),
+                              ),
+                            );
+                          }),
+                        ),
+                      );
+                    }),
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          // Tapped cell label
+          AnimatedSize(
+            duration: const Duration(milliseconds: 200),
+            child: _tappedIndex != null
+                ? Padding(
+                    padding: const EdgeInsets.only(top: 10),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: NMColors.surface,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: NMColors.border, width: 0.5),
+                      ),
+                      child: Text(
+                        _label(_tappedIndex!, widget.data[_tappedIndex!]),
+                        style: const TextStyle(
+                          color: NMColors.muted,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ),
+                  )
+                : const SizedBox.shrink(),
+          ),
+
+          const SizedBox(height: 10),
+
+          // Legend
+          Row(
+            children: [
+              const Text(
+                'Less',
+                style: TextStyle(color: NMColors.muted, fontSize: 9),
+              ),
+              const SizedBox(width: 4),
+              ...List.generate(
+                5,
+                (i) => Container(
+                  width: 9,
+                  height: 9,
+                  margin: const EdgeInsets.only(right: 2),
+                  decoration: BoxDecoration(
+                    color: _cellColor(i),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const Text(
+                'More',
+                style: TextStyle(color: NMColors.muted, fontSize: 9),
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -161,7 +366,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
   Future<void> _logout() async {
     await FirebaseAuth.instance.signOut();
     if (!mounted) return;
-    Navigator.of(context).pop(); // close sheet
+    Navigator.of(context).pop();
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const LoginPage()),
       (_) => false,
@@ -184,7 +389,6 @@ class _SettingsSheetState extends State<_SettingsSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Handle
             Center(
               child: Container(
                 margin: const EdgeInsets.only(top: 12, bottom: 4),
@@ -196,8 +400,6 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                 ),
               ),
             ),
-
-            // Header row
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
               child: Row(
@@ -223,15 +425,11 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                 ],
               ),
             ),
-
-            // ── ACCOUNT ──────────────────────────────────────────────────────
             _SheetSectionLabel('Account'),
             _SettingsTile(
               icon: Icons.person_outline,
               label: 'Edit profile',
-              onTap: () {
-                // TODO: navigate to edit profile page
-              },
+              onTap: () {},
             ),
             _SettingsDivider(),
             _SettingsTile(
@@ -241,10 +439,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
               iconColor: NMColors.red,
               onTap: _logout,
             ),
-
             const SizedBox(height: 16),
-
-            // ── NOTIFICATIONS ─────────────────────────────────────────────────
             _SheetSectionLabel('Notifications'),
             _SettingsToggle(
               icon: Icons.notifications_outlined,
@@ -253,7 +448,6 @@ class _SettingsSheetState extends State<_SettingsSheet> {
               onChanged: (v) {
                 HapticFeedback.selectionClick();
                 setState(() => _notificationsEnabled = v);
-                // TODO: save to shared_preferences
               },
             ),
             _SettingsDivider(),
@@ -264,16 +458,10 @@ class _SettingsSheetState extends State<_SettingsSheet> {
               onChanged: (v) {
                 HapticFeedback.selectionClick();
                 setState(() => _emailAlerts = v);
-                // TODO: save to shared_preferences
               },
             ),
-
             const SizedBox(height: 16),
-
-            // ── MAP PREFERENCES ───────────────────────────────────────────────
             _SheetSectionLabel('Map preferences'),
-
-            // Distance unit
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
               child: Row(
@@ -296,16 +484,12 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                     onSelect: (v) {
                       HapticFeedback.selectionClick();
                       setState(() => _distanceUnit = v);
-                      // TODO: save to shared_preferences
                     },
                   ),
                 ],
               ),
             ),
-
             _SettingsDivider(),
-
-            // Default zoom
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 10, 20, 4),
               child: Row(
@@ -351,17 +535,11 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                   min: 8,
                   max: 16,
                   divisions: 8,
-                  onChanged: (v) {
-                    setState(() => _defaultZoom = v);
-                    // TODO: save to shared_preferences
-                  },
+                  onChanged: (v) => setState(() => _defaultZoom = v),
                 ),
               ),
             ),
-
             const SizedBox(height: 16),
-
-            // ── ABOUT ─────────────────────────────────────────────────────────
             _SheetSectionLabel('About'),
             _SettingsTile(
               icon: Icons.info_outline,
@@ -376,9 +554,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
             _SettingsTile(
               icon: Icons.description_outlined,
               label: 'Privacy policy',
-              onTap: () {
-                // TODO: launch privacy policy URL
-              },
+              onTap: () {},
             ),
             _SettingsDivider(),
             _SettingsTile(
@@ -572,7 +748,7 @@ class _SegmentedPicker extends StatelessWidget {
 }
 
 // =============================================================================
-// PROFILE HERO — uses Firebase Auth for real name, photo, initials
+// PROFILE HERO
 // =============================================================================
 
 class _ProfileHero extends StatelessWidget {
@@ -650,10 +826,15 @@ class _ProfileHero extends StatelessWidget {
                     color: NMColors.muted,
                   ),
                   const SizedBox(width: 3),
-                  Text(
-                    email.isNotEmpty ? email : 'Tunis · Joined Jan 2025',
-                    style: const TextStyle(color: NMColors.muted, fontSize: 12),
-                    overflow: TextOverflow.ellipsis,
+                  Expanded(
+                    child: Text(
+                      email.isNotEmpty ? email : 'Tunis · Joined Jan 2025',
+                      style: const TextStyle(
+                        color: NMColors.muted,
+                        fontSize: 12,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 ],
               ),
@@ -689,7 +870,7 @@ class _StatGrid extends StatelessWidget {
       children: [
         _StatCard(value: '47', label: 'Reports'),
         const SizedBox(width: 8),
-        _StatCard(value: '3', label: 'visited'),
+        _StatCard(value: '3', label: 'Visited'),
         const SizedBox(width: 8),
         _StatCard(value: '#12', label: 'City rank', valueColor: NMColors.amber),
       ],
@@ -736,82 +917,6 @@ class _StatCard extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-// =============================================================================
-// BADGE GRID
-// =============================================================================
-
-class _BadgeGrid extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 5,
-        childAspectRatio: 0.75,
-        mainAxisSpacing: 8,
-        crossAxisSpacing: 8,
-      ),
-      itemCount: _badges.length,
-      itemBuilder: (_, i) => _BadgeTile(badge: _badges[i]),
-    );
-  }
-}
-
-class _BadgeTile extends StatelessWidget {
-  final _Badge badge;
-  const _BadgeTile({required this.badge});
-
-  @override
-  Widget build(BuildContext context) {
-    return Tooltip(
-      message: badge.description,
-      preferBelow: false,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: badge.unlocked
-                  ? badge.color.withOpacity(0.12)
-                  : NMColors.surface,
-              border: Border.all(
-                color: badge.unlocked
-                    ? badge.color.withOpacity(0.35)
-                    : NMColors.border,
-                width: badge.unlocked ? 1 : 0.5,
-              ),
-            ),
-            child: Center(
-              child: badge.unlocked
-                  ? Text(badge.emoji, style: const TextStyle(fontSize: 20))
-                  : const Icon(
-                      Icons.lock_outline,
-                      size: 18,
-                      color: NMColors.muted,
-                    ),
-            ),
-          ),
-          const SizedBox(height: 5),
-          Text(
-            badge.name,
-            style: TextStyle(
-              color: badge.unlocked ? NMColors.text : NMColors.muted,
-              fontSize: 9,
-              height: 1.3,
-            ),
-            textAlign: TextAlign.center,
-            maxLines: 2,
-          ),
-        ],
       ),
     );
   }
@@ -890,7 +995,7 @@ class _Leaderboard extends StatelessWidget {
                   ),
                 ),
                 Expanded(
-                  flex: 3,
+                  flex: 2,
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(2),
                     child: LinearProgressIndicator(
