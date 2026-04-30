@@ -6,71 +6,40 @@ import 'package:geolocator/geolocator.dart';
 import '../main.dart';
 import '../config.dart';
 
-// ── Tunisia bounding box (buffered for better framing) ────────────────────────────
-final _tunisiaBounds = LatLngBounds(LatLng(29.0, 6.0), LatLng(38.5, 12.5));
-final _tunisiaCenter = LatLng(34.0, 9.0);
+// =============================================================================
+// CONSTANTS
+// =============================================================================
 
-// ── Data model ───────────────────────────────────────────────────────────────
-enum ReportCategory { dumping, pollution, pothole, lighting, other }
+final _tunisiaBounds = LatLngBounds(
+  const LatLng(29.0, 6.0),
+  const LatLng(38.5, 12.5),
+);
+const _tunisiaCenter = LatLng(34.0, 9.0);
 
-extension ReportCategoryX on ReportCategory {
-  String get label {
-    switch (this) {
-      case ReportCategory.dumping:
-        return 'Illegal dumping';
-      case ReportCategory.pollution:
-        return 'Pollution';
-      case ReportCategory.pothole:
-        return 'Pothole / Road';
-      case ReportCategory.lighting:
-        return 'Broken light';
-      case ReportCategory.other:
-        return 'Other';
-    }
-  }
+// =============================================================================
+// VIEW MODE
+// Toggles between heatmap overlay and point markers
+// =============================================================================
 
-  IconData get icon {
-    switch (this) {
-      case ReportCategory.dumping:
-        return Icons.delete_outline;
-      case ReportCategory.pollution:
-        return Icons.water_drop_outlined;
-      case ReportCategory.pothole:
-        return Icons.warning_amber_outlined;
-      case ReportCategory.lighting:
-        return Icons.light_outlined;
-      case ReportCategory.other:
-        return Icons.help_outline;
-    }
-  }
+enum MapViewMode { heatmap, points }
 
-  Color get color {
-    switch (this) {
-      case ReportCategory.dumping:
-        return NMColors.red;
-      case ReportCategory.pollution:
-        return NMColors.orange;
-      case ReportCategory.pothole:
-        return NMColors.amber;
-      case ReportCategory.lighting:
-        return const Color(0xFF818CF8); // indigo
-      case ReportCategory.other:
-        return NMColors.muted;
-    }
-  }
-}
+// =============================================================================
+// REPORT MODEL
+// No hardcoded data — fetched from Firebase (wired via ReportService)
+// =============================================================================
 
 class Report {
+  final String id;
   final LatLng position;
-  final ReportCategory category;
+  final String category;
   final String description;
   final String area;
   final int reportCount;
   final int daysOld;
-  // neglect score 0-100: decays slowly so old unfixed reports stay high
-  final int neglectScore;
+  final int neglectScore; // 0–100
 
   const Report({
+    required this.id,
     required this.position,
     required this.category,
     required this.description,
@@ -79,67 +48,48 @@ class Report {
     required this.daysOld,
     required this.neglectScore,
   });
-}
 
-// ── Sample data ───────────────────────────────────────────────────────────────
-const _sampleReports = [
-  Report(
-    position: LatLng(36.810, 10.180),
-    category: ReportCategory.dumping,
-    description: 'Illegal dumping near Av. Habib Bourguiba',
-    area: 'Tunis Centre',
-    reportCount: 12,
-    daysOld: 18,
-    neglectScore: 82,
-  ),
-  Report(
-    position: LatLng(36.830, 10.215),
-    category: ReportCategory.lighting,
-    description: 'Broken streetlights along Route X2',
-    area: 'Lac 2',
-    reportCount: 5,
-    daysOld: 9,
-    neglectScore: 54,
-  ),
-  Report(
-    position: LatLng(36.795, 10.168),
-    category: ReportCategory.pollution,
-    description: 'Oil spill near drainage channel',
-    area: 'Médina',
-    reportCount: 3,
-    daysOld: 4,
-    neglectScore: 31,
-  ),
-  Report(
-    position: LatLng(36.849, 10.193),
-    category: ReportCategory.pothole,
-    description: 'Multiple potholes, Rue de Marseille',
-    area: 'Bab Bhar',
-    reportCount: 8,
-    daysOld: 22,
-    neglectScore: 76,
-  ),
-];
-
-// ── Time filter enum ──────────────────────────────────────────────────────────
-enum TimeFilter { h24, d7, d30, all }
-
-extension TimeFilterX on TimeFilter {
-  String get label {
-    switch (this) {
-      case TimeFilter.h24:
-        return '24h';
-      case TimeFilter.d7:
-        return '7 days';
-      case TimeFilter.d30:
-        return '30 days';
-      case TimeFilter.all:
-        return 'All time';
-    }
+  factory Report.fromFirestore(Map<String, dynamic> data, String id) {
+    return Report(
+      id: id,
+      position: LatLng(
+        (data['lat'] as num).toDouble(),
+        (data['lng'] as num).toDouble(),
+      ),
+      category: data['category'] as String? ?? 'other',
+      description: data['description'] as String? ?? '',
+      area: data['area'] as String? ?? '',
+      reportCount: (data['reportCount'] as num?)?.toInt() ?? 1,
+      daysOld: (data['daysOld'] as num?)?.toInt() ?? 0,
+      neglectScore: (data['neglectScore'] as num?)?.toInt() ?? 0,
+    );
   }
 }
 
-// ── Main map page ─────────────────────────────────────────────────────────────
+// =============================================================================
+// REPORT SERVICE
+// Swap _mockFetch → _firebaseFetch when backend is ready.
+// =============================================================================
+
+class ReportService {
+  static Future<List<Report>> fetch() async {
+    // TODO: replace with Firebase fetch
+    // final snap = await FirebaseFirestore.instance
+    //     .collection('reports')
+    //     .orderBy('neglectScore', descending: true)
+    //     .get();
+    // return snap.docs.map((d) => Report.fromFirestore(d.data(), d.id)).toList();
+
+    // Return empty list until Firebase is wired — heatmap tiles
+    // from the KDE server will still render independently.
+    return [];
+  }
+}
+
+// =============================================================================
+// MAP PAGE
+// =============================================================================
+
 class MapPage extends StatefulWidget {
   const MapPage({super.key});
 
@@ -148,27 +98,28 @@ class MapPage extends StatefulWidget {
 }
 
 class _MapPageState extends State<MapPage> {
+  // ── State ──────────────────────────────────────────────────────────────────
   final MapController _mapController = MapController();
-  TimeFilter _timeFilter = TimeFilter.d7;
-  Report? _selectedReport;
-  LatLng? _initialCenter;
+  List<Report> _reports = [];
   bool _locationLoading = true;
-  String? _locationStatus;
-  double? _actualZoom;
+  LatLng? _userPosition;
+  Report? _selectedReport;
+  MapViewMode _viewMode = MapViewMode.heatmap;
 
+  // ── Lifecycle ──────────────────────────────────────────────────────────────
   @override
   void initState() {
     super.initState();
-    _initializeLocation();
+    _initLocation();
+    _loadReports();
   }
 
-  Future<void> _initializeLocation() async {
+  // ── Location ───────────────────────────────────────────────────────────────
+  Future<void> _initLocation() async {
     try {
       final serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        _locationStatus = 'service_disabled';
-        _initialCenter = _tunisiaCenter;
-        setState(() => _locationLoading = false);
+        _fallbackCenter();
         return;
       }
 
@@ -176,513 +127,298 @@ class _MapPageState extends State<MapPage> {
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
       }
-
       if (permission == LocationPermission.denied ||
           permission == LocationPermission.deniedForever) {
-        _locationStatus = 'permission_denied';
-        _initialCenter = _tunisiaCenter;
-        setState(() => _locationLoading = false);
+        _fallbackCenter();
         return;
       }
 
-      final position = await Geolocator.getCurrentPosition(
+      final pos = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
           accuracy: LocationAccuracy.medium,
           timeLimit: Duration(seconds: 10),
         ),
       );
 
-      final userPos = LatLng(position.latitude, position.longitude);
-      if (_tunisiaBounds.contains(userPos)) {
-        _locationStatus = 'fetched';
-        _initialCenter = userPos;
-      } else {
-        _locationStatus = 'outside_bounds';
-        _initialCenter = _tunisiaCenter;
-      }
-    } catch (e) {
-      _locationStatus = 'error: $e';
-      _initialCenter = _tunisiaCenter;
-    }
-    if (mounted) {
-      setState(() => _locationLoading = false);
-      if (_locationStatus == 'fetched' && _initialCenter != null) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          _mapController.move(_initialCenter!, 13.0);
-        });
-      }
+      final userLatLng = LatLng(pos.latitude, pos.longitude);
+      if (!mounted) return;
+
+      setState(() {
+        _userPosition = userLatLng;
+        _locationLoading = false;
+      });
+
+      // Move camera to user if inside Tunisia, else stay on Tunisia overview
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_tunisiaBounds.contains(userLatLng)) {
+          _mapController.move(userLatLng, 13.0);
+        }
+      });
+    } catch (_) {
+      _fallbackCenter();
     }
   }
 
-  CameraFit get _initialCameraFit {
-    // Always fit to Tunisia bounds for consistent zoom level
-    return CameraFit.bounds(
-      bounds: _tunisiaBounds,
-      padding: const EdgeInsets.all(80),
-    );
+  void _fallbackCenter() {
+    if (!mounted) return;
+    setState(() => _locationLoading = false);
   }
 
-  List<Report> get _filteredReports {
-    int maxDays;
-    switch (_timeFilter) {
-      case TimeFilter.h24:
-        maxDays = 1;
-        break;
-      case TimeFilter.d7:
-        maxDays = 7;
-        break;
-      case TimeFilter.d30:
-        maxDays = 30;
-        break;
-      case TimeFilter.all:
-        maxDays = 9999;
-        break;
-    }
-    return _sampleReports.where((r) => r.daysOld <= maxDays).toList();
+  // ── Data ───────────────────────────────────────────────────────────────────
+  Future<void> _loadReports() async {
+    final reports = await ReportService.fetch();
+    if (!mounted) return;
+    setState(() => _reports = reports);
   }
 
-  // Neglect score → marker color
+  // ── Helpers ────────────────────────────────────────────────────────────────
   Color _scoreColor(int score) {
     if (score >= 70) return NMColors.red;
     if (score >= 40) return NMColors.orange;
     return NMColors.amber;
   }
 
+  // ==========================================================================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(
+      backgroundColor: NMColors.bg,
+      body: Column(
         children: [
-          // ── Map ────────────────────────────────────────────────────────────
-          FlutterMap(
-            mapController: _mapController,
-            options: MapOptions(
-              initialCameraFit: _initialCameraFit,
-              cameraConstraint: CameraConstraint.contain(
-                bounds: _tunisiaBounds,
-              ),
-              maxZoom: 18,
-              minZoom: 6,
-              onTap: (_, __) => setState(() => _selectedReport = null),
-              onPositionChanged: (position, hasGesture) {
-                if (position.zoom != null) {
-                  _actualZoom = position.zoom;
-                }
-              },
-            ),
-            children: [
-              // Tile layer — dark CartoDB Positron fork looks great on dark UI
-              TileLayer(
-                urlTemplate:
-                    'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-                subdomains: const ['a', 'b', 'c', 'd'],
-                userAgentPackageName: 'com.neglectmap.app',
-                retinaMode: MediaQuery.of(context).devicePixelRatio > 1.0,
-              ),
-
-              //TODO connect to http python tile server
-              /*
-              //heatmap tile layer KDE from my local python server
-              TileLayer(
-                urlTemplate: "${Appconfig.heatmapUrl}/heatmap/{z}/{x}/{y}.png",
-                tileProvider: NetworkTileProvider(),
-              ),
-              */
-
-              // Report markers
-              MarkerLayer(
-                markers: _filteredReports.map((report) {
-                  final color = _scoreColor(report.neglectScore);
-                  return Marker(
-                    point: report.position,
-                    width: 36,
-                    height: 36,
-                    child: GestureDetector(
-                      onTap: () => setState(() => _selectedReport = report),
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          // Pulsing ring
-                          Container(
-                            width: 36,
-                            height: 36,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: color.withOpacity(0.15),
-                              border: Border.all(
-                                color: color.withOpacity(0.4),
-                                width: 0.5,
-                              ),
-                            ),
-                          ),
-                          // Core dot
-                          Container(
-                            width: 12,
-                            height: 12,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: color,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: color.withOpacity(0.6),
-                                  blurRadius: 6,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ],
-          ),
-
-          // ── Top overlay: title + filter pills ──────────────────────────────
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
+          // ── Top bar — lives in normal Column flow, no gesture conflicts
+          SafeArea(
+            bottom: false,
             child: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    NMColors.bg.withOpacity(0.95),
-                    NMColors.bg.withOpacity(0),
-                  ],
-                  stops: const [0.6, 1.0],
-                ),
-              ),
-              child: SafeArea(
-                bottom: false,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Title bar
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-                      child: Row(
-                        children: [
-                          const Text(
-                            'Bayanati',
-                            style: TextStyle(
-                              color: NMColors.text,
-                              fontSize: 18,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: -0.5,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: NMColors.green.withOpacity(0.15),
-                              borderRadius: BorderRadius.circular(4),
-                              border: Border.all(
-                                color: NMColors.green.withOpacity(0.4),
-                                width: 0.5,
-                              ),
-                            ),
-                            child: const Text(
-                              '● LIVE',
-                              style: TextStyle(
-                                color: NMColors.green,
-                                fontSize: 9,
-                                fontWeight: FontWeight.w600,
-                                letterSpacing: 0.5,
-                              ),
-                            ),
-                          ),
-                          const Spacer(),
-                          Text(
-                            '${_filteredReports.length} active',
-                            style: const TextStyle(
-                              color: NMColors.muted,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    // Filter pills
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                      child: Row(
-                        children: TimeFilter.values.map((f) {
-                          final active = f == _timeFilter;
-                          return Padding(
-                            padding: const EdgeInsets.only(right: 6),
-                            child: GestureDetector(
-                              onTap: () => setState(() => _timeFilter = f),
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 200),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 6,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: active
-                                      ? NMColors.green.withOpacity(0.15)
-                                      : NMColors.surface.withOpacity(0.8),
-                                  borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(
-                                    color: active
-                                        ? NMColors.green.withOpacity(0.5)
-                                        : NMColors.border,
-                                    width: 0.5,
-                                  ),
-                                ),
-                                child: Text(
-                                  f.label,
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: active
-                                        ? FontWeight.w600
-                                        : FontWeight.normal,
-                                    color: active
-                                        ? NMColors.green
-                                        : NMColors.muted,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-
-          // ── Debug overlay ───────────────────────────────────────────
-          // Always show for debugging (remove or wrap in kDebugMode in production)
-          Positioned(
-            top: 120,
-            left: 8,
-            right: 80,
-            child: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.85),
-                borderRadius: BorderRadius.circular(4),
-                border: Border.all(color: Colors.red, width: 1),
-              ),
+              color: NMColors.bg,
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    'Status: ${_locationStatus ?? "loading..."}',
-                    style: const TextStyle(
-                      color: Colors.red,
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  Row(
+                    children: [
+                      const Text(
+                        'Bayanati',
+                        style: TextStyle(
+                          color: NMColors.text,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: NMColors.green.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(
+                            color: NMColors.green.withOpacity(0.4),
+                            width: 0.5,
+                          ),
+                        ),
+                        child: const Text(
+                          '● LIVE',
+                          style: TextStyle(
+                            color: NMColors.green,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  Text(
-                    'Center: ${_initialCenter?.latitude.toStringAsFixed(3) ?? "-"}, ${_initialCenter?.longitude.toStringAsFixed(3) ?? "-"}',
-                    style: const TextStyle(color: Colors.white, fontSize: 10),
+                  const SizedBox(height: 8),
+                  _ViewModeToggle(
+                    mode: _viewMode,
+                    onChanged: (m) => setState(() => _viewMode = m),
                   ),
                 ],
               ),
             ),
           ),
 
-          // ── OpenStreetMap attribution ───────────────────────────────────────
-          Positioned(
-            bottom: 8,
-            right: 8,
-            child: GestureDetector(
-              onTap: () async {
-                final url = Uri.parse(
-                  'https://www.openstreetmap.org/copyright',
-                );
-                if (await canLaunchUrl(url)) await launchUrl(url);
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                decoration: BoxDecoration(
-                  color: NMColors.bg.withOpacity(0.8),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: const Text(
-                  '© OpenStreetMap contributors',
-                  style: TextStyle(fontSize: 10, color: NMColors.muted),
-                ),
-              ),
-            ),
-          ),
-
-          // ── Bottom sheet: report list or selected report detail ─────────────
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 250),
-              child: _selectedReport != null
-                  ? _ReportDetail(
-                      key: ValueKey(_selectedReport),
-                      report: _selectedReport!,
-                      onClose: () => setState(() => _selectedReport = null),
-                    )
-                  : _ReportList(reports: _filteredReports),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Report list bottom sheet ──────────────────────────────────────────────────
-class _ReportList extends StatelessWidget {
-  final List<Report> reports;
-
-  const _ReportList({required this.reports});
-
-  @override
-  Widget build(BuildContext context) {
-    final sorted = [...reports]
-      ..sort((a, b) => b.neglectScore.compareTo(a.neglectScore));
-
-    return Container(
-      decoration: const BoxDecoration(
-        color: NMColors.surface,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        border: Border(top: BorderSide(color: NMColors.border, width: 0.5)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Handle
-          Container(
-            margin: const EdgeInsets.only(top: 10, bottom: 8),
-            width: 32,
-            height: 3,
-            decoration: BoxDecoration(
-              color: NMColors.muted.withOpacity(0.4),
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-
-          // Section header
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-            child: Row(
-              children: [
-                const Text(
-                  'Persistent issues',
-                  style: TextStyle(
-                    color: NMColors.text,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const Spacer(),
-                Text(
-                  '${sorted.length} found',
-                  style: const TextStyle(color: NMColors.muted, fontSize: 12),
-                ),
-              ],
-            ),
-          ),
-
-          // List
-          ...sorted.take(3).map((r) => _ReportListTile(report: r)),
-          const SizedBox(height: 12),
-        ],
-      ),
-    );
-  }
-}
-
-class _ReportListTile extends StatelessWidget {
-  final Report report;
-
-  const _ReportListTile({required this.report});
-
-  Color get _scoreColor {
-    if (report.neglectScore >= 70) return NMColors.red;
-    if (report.neglectScore >= 40) return NMColors.orange;
-    return NMColors.amber;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Category dot
-          Padding(
-            padding: const EdgeInsets.only(top: 5),
-            child: Container(
-              width: 8,
-              height: 8,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: report.category.color,
-              ),
-            ),
-          ),
-          const SizedBox(width: 10),
-
-          // Text + neglect bar
+          // ── Map fills remaining space
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Stack(
               children: [
-                Text(
-                  report.description,
-                  style: const TextStyle(
-                    color: NMColors.text,
-                    fontSize: 13,
-                    height: 1.3,
+                FlutterMap(
+                  mapController: _mapController,
+                  options: MapOptions(
+                    initialCenter: LatLng(34.0, 9.0),
+                    cameraConstraint: CameraConstraint.contain(
+                      bounds: _tunisiaBounds,
+                    ),
+                    maxZoom: 18,
+                    minZoom: 6,
+                    onTap: (_, __) => setState(() => _selectedReport = null),
                   ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  '${report.reportCount} reports · ${report.daysOld}d persistent',
-                  style: const TextStyle(color: NMColors.muted, fontSize: 11),
-                ),
-                const SizedBox(height: 5),
-                // Neglect score bar
-                Row(
                   children: [
-                    Expanded(
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(2),
-                        child: LinearProgressIndicator(
-                          value: report.neglectScore / 100,
-                          minHeight: 3,
-                          backgroundColor: NMColors.border,
-                          valueColor: AlwaysStoppedAnimation(_scoreColor),
-                        ),
-                      ),
+                    // 1 — Dark base tiles
+                    TileLayer(
+                      urlTemplate:
+                          'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+                      subdomains: const ['a', 'b', 'c', 'd'],
+                      userAgentPackageName: 'com.neglectmap.app',
+                      retinaMode: MediaQuery.of(context).devicePixelRatio > 1.0,
                     ),
-                    const SizedBox(width: 8),
-                    Text(
-                      '${report.neglectScore}',
-                      style: TextStyle(
-                        color: _scoreColor,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
+
+                    // 2 — KDE heatmap tile layer
+                    if (_viewMode == MapViewMode.heatmap)
+                      TileLayer(
+                        urlTemplate:
+                            '${Appconfig.heatmapUrl}/heatmap/{z}/{x}/{y}.png',
+                        tileProvider: NetworkTileProvider(),
                       ),
-                    ),
+
+                    // 3 — Point markers (points mode, from Firebase)
+                    if (_viewMode == MapViewMode.points && _reports.isNotEmpty)
+                      MarkerLayer(
+                        markers: _reports.map((report) {
+                          final color = _scoreColor(report.neglectScore);
+                          return Marker(
+                            point: report.position,
+                            width: 36,
+                            height: 36,
+                            child: GestureDetector(
+                              onTap: () =>
+                                  setState(() => _selectedReport = report),
+                              child: Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  Container(
+                                    width: 36,
+                                    height: 36,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: color.withOpacity(0.15),
+                                      border: Border.all(
+                                        color: color.withOpacity(0.4),
+                                        width: 0.5,
+                                      ),
+                                    ),
+                                  ),
+                                  Container(
+                                    width: 12,
+                                    height: 12,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: color,
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: color.withOpacity(0.6),
+                                          blurRadius: 6,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+
+                    // 4 — User location dot
+                    if (_userPosition != null)
+                      MarkerLayer(
+                        markers: [
+                          Marker(
+                            point: _userPosition!,
+                            width: 20,
+                            height: 20,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: NMColors.green,
+                                border: Border.all(
+                                  color: Colors.white,
+                                  width: 2,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: NMColors.green.withOpacity(0.4),
+                                    blurRadius: 8,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                   ],
                 ),
+
+                // ── Right rail buttons
+                Positioned(
+                  top: 12,
+                  right: 12,
+                  child: Column(
+                    children: [
+                      _MapButton(
+                        icon: Icons.my_location,
+                        onTap: () {
+                          if (_userPosition != null) {
+                            _mapController.move(_userPosition!, 14.0);
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 8),
+                      _MapButton(
+                        icon: Icons.filter_list,
+                        onTap: () {
+                          // TODO: category filter sheet
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+
+                // ── Attribution
+                Positioned(
+                  bottom: 8,
+                  right: 8,
+                  child: GestureDetector(
+                    onTap: () async {
+                      final url = Uri.parse(
+                        'https://www.openstreetmap.org/copyright',
+                      );
+                      if (await canLaunchUrl(url)) await launchUrl(url);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: NMColors.bg.withOpacity(0.8),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const Text(
+                        '© OpenStreetMap contributors',
+                        style: TextStyle(fontSize: 10, color: NMColors.muted),
+                      ),
+                    ),
+                  ),
+                ),
+
+                // ── Report detail panel
+                if (_selectedReport != null)
+                  Positioned(
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    child: _ReportDetail(
+                      key: ValueKey(_selectedReport!.id),
+                      report: _selectedReport!,
+                      onClose: () => setState(() => _selectedReport = null),
+                      scoreColor: _scoreColor(_selectedReport!.neglectScore),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -692,18 +428,144 @@ class _ReportListTile extends StatelessWidget {
   }
 }
 
-// ── Selected report detail panel ──────────────────────────────────────────────
+// =============================================================================
+// VIEW MODE TOGGLE
+// =============================================================================
+
+class _ViewModeToggle extends StatelessWidget {
+  final MapViewMode mode;
+  final ValueChanged<MapViewMode> onChanged;
+
+  const _ViewModeToggle({required this.mode, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: NMColors.card,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: NMColors.border, width: 0.5),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _ToggleOption(
+            icon: Icons.whatshot_outlined,
+            label: 'Heatmap',
+            active: mode == MapViewMode.heatmap,
+            onTap: () => onChanged(MapViewMode.heatmap),
+            isFirst: true,
+          ),
+          Container(width: 0.5, height: 28, color: NMColors.border),
+          _ToggleOption(
+            icon: Icons.location_on_outlined,
+            label: 'Points',
+            active: mode == MapViewMode.points,
+            onTap: () => onChanged(MapViewMode.points),
+            isFirst: false,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ToggleOption extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool active;
+  final VoidCallback onTap;
+  final bool isFirst;
+
+  const _ToggleOption({
+    required this.icon,
+    required this.label,
+    required this.active,
+    required this.onTap,
+    required this.isFirst,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        decoration: BoxDecoration(
+          color: active ? NMColors.green.withOpacity(0.15) : Colors.transparent,
+          borderRadius: BorderRadius.horizontal(
+            left: isFirst ? const Radius.circular(7) : Radius.zero,
+            right: isFirst ? Radius.zero : const Radius.circular(7),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 14,
+              color: active ? NMColors.green : NMColors.muted,
+            ),
+            const SizedBox(width: 5),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: active ? FontWeight.w600 : FontWeight.normal,
+                color: active ? NMColors.green : NMColors.muted,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// =============================================================================
+// MAP BUTTON
+// =============================================================================
+
+class _MapButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _MapButton({required this.icon, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: NMColors.surface,
+          shape: BoxShape.circle,
+          border: Border.all(color: NMColors.border, width: 0.5),
+        ),
+        child: Icon(icon, color: NMColors.muted, size: 18),
+      ),
+    );
+  }
+}
+
+// =============================================================================
+// REPORT DETAIL PANEL
+// =============================================================================
+
 class _ReportDetail extends StatelessWidget {
   final Report report;
   final VoidCallback onClose;
+  final Color scoreColor;
 
-  const _ReportDetail({super.key, required this.report, required this.onClose});
-
-  Color get _scoreColor {
-    if (report.neglectScore >= 70) return NMColors.red;
-    if (report.neglectScore >= 40) return NMColors.orange;
-    return NMColors.amber;
-  }
+  const _ReportDetail({
+    super.key,
+    required this.report,
+    required this.onClose,
+    required this.scoreColor,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -713,12 +575,11 @@ class _ReportDetail extends StatelessWidget {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         border: Border(top: BorderSide(color: NMColors.border, width: 0.5)),
       ),
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Handle + close
           Row(
             children: [
               Container(
@@ -737,38 +598,25 @@ class _ReportDetail extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-
-          // Category chip
           Row(
             children: [
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: report.category.color.withOpacity(0.12),
+                  color: scoreColor.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(6),
                   border: Border.all(
-                    color: report.category.color.withOpacity(0.3),
+                    color: scoreColor.withOpacity(0.3),
                     width: 0.5,
                   ),
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      report.category.icon,
-                      size: 12,
-                      color: report.category.color,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      report.category.label,
-                      style: TextStyle(
-                        color: report.category.color,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
+                child: Text(
+                  report.category,
+                  style: TextStyle(
+                    color: scoreColor,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
               const SizedBox(width: 8),
@@ -779,8 +627,6 @@ class _ReportDetail extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
-
-          // Description
           Text(
             report.description,
             style: const TextStyle(
@@ -790,40 +636,35 @@ class _ReportDetail extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-
-          // Stats row
           Row(
             children: [
-              _StatChip(
+              _Chip(
                 label: 'Reports',
                 value: '${report.reportCount}',
                 color: NMColors.muted,
               ),
               const SizedBox(width: 8),
-              _StatChip(
-                label: 'Days old',
+              _Chip(
+                label: 'Age',
                 value: '${report.daysOld}d',
                 color: NMColors.muted,
               ),
               const SizedBox(width: 8),
-              _StatChip(
+              _Chip(
                 label: 'Neglect',
                 value: '${report.neglectScore}',
-                color: _scoreColor,
+                color: scoreColor,
               ),
             ],
           ),
           const SizedBox(height: 12),
-
-          // Neglect bar
           ClipRRect(
             borderRadius: BorderRadius.circular(4),
-            clipBehavior: Clip.antiAlias,
             child: LinearProgressIndicator(
               value: report.neglectScore / 100,
               minHeight: 5,
               backgroundColor: NMColors.border,
-              valueColor: AlwaysStoppedAnimation(_scoreColor),
+              valueColor: AlwaysStoppedAnimation(scoreColor),
             ),
           ),
         ],
@@ -832,16 +673,12 @@ class _ReportDetail extends StatelessWidget {
   }
 }
 
-class _StatChip extends StatelessWidget {
+class _Chip extends StatelessWidget {
   final String label;
   final String value;
   final Color color;
 
-  const _StatChip({
-    required this.label,
-    required this.value,
-    required this.color,
-  });
+  const _Chip({required this.label, required this.value, required this.color});
 
   @override
   Widget build(BuildContext context) {
